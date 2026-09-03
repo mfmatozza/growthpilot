@@ -12,7 +12,10 @@ from sqlalchemy import select
 
 from app.core.config import get_settings
 from app.db.session import SessionLocal
+from app.models.article import Article
+from app.models.keyword import Keyword, KeywordStatus
 from app.models.site import Site
+from app.pipelines.article_generation import run_generate_article
 from app.pipelines.geo_tracker import get_available_providers, run_geo_check
 from app.pipelines.reddit_monitor import run_reddit_monitor
 from app.pipelines.technical_audit import run_technical_audit
@@ -21,6 +24,8 @@ from app.services.llm.base import LLMError
 from app.services.llm.factory import get_default_llm_client
 from app.services.reddit.base import RedditError
 from app.services.reddit.praw_client import PrawRedditClient
+from app.services.serp.base import SerpError
+from app.services.serp.serpapi import SerpApiProvider
 
 logger = logging.getLogger(__name__)
 
@@ -92,5 +97,49 @@ def run_weekly_reddit_monitor() -> None:
                 run_reddit_monitor(db=db, site=site, reddit_client=reddit_client, llm=llm)
             except Exception:
                 logger.exception("Weekly Reddit monitor failed for site %s (%s)", site.id, site.url)
+    finally:
+        db.close()
+
+
+# Capped per site per run — an LLM call per outline plus one per section
+# (5-8 sections) adds up fast across many sites/keywords; this bounds both
+# cost and how long the weekly job runs for.
+_MAX_ARTICLE_DRAFTS_PER_SITE_PER_RUN = 2
+
+
+def run_weekly_article_drafts() -> None:
+    """Auto-drafts articles for approved keywords that don't have one yet —
+    never auto-publishes (drafts still need a human to move them to
+    review/published, see app/api/routes/articles.py)."""
+    db = SessionLocal()
+    try:
+        try:
+            llm = get_default_llm_client()
+        except LLMError:
+            logger.info("Skipping weekly article drafts — no LLM provider configured")
+            return
+
+        serp_provider = None
+        try:
+            serp_provider = SerpApiProvider()
+        except SerpError:
+            pass  # optional — see docs/DECISIONS.md #25
+
+        sites = db.scalars(select(Site)).all()
+        for site in sites:
+            try:
+                stmt = (
+                    select(Keyword)
+                    .outerjoin(Article, Article.keyword_id == Keyword.id)
+                    .where(Keyword.site_id == site.id, Keyword.status == KeywordStatus.approved, Article.id.is_(None))
+                    .order_by(Keyword.opportunity_score.desc().nullslast())
+                    .limit(_MAX_ARTICLE_DRAFTS_PER_SITE_PER_RUN)
+                )
+                for keyword in db.scalars(stmt).all():
+                    run_generate_article(
+                        db=db, site=site, keyword=keyword, llm=llm, fetcher=HttpxFetcher(), serp_provider=serp_provider
+                    )
+            except Exception:
+                logger.exception("Weekly article draft failed for site %s (%s)", site.id, site.url)
     finally:
         db.close()

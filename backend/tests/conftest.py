@@ -71,6 +71,23 @@ class SequencedLLM:
         raise NotImplementedError
 
 
+class RoutedLLM:
+    """Routes every complete_json call to one fake client and every
+    complete_text call to another, each called as many times as needed —
+    for pipelines (like article generation) that call complete_json once
+    and complete_text repeatedly (once per section) in the same run."""
+
+    def __init__(self, json_client, text_client):
+        self._json_client = json_client
+        self._text_client = text_client
+
+    def complete_json(self, **kwargs):
+        return self._json_client.complete_json(**kwargs)
+
+    def complete_text(self, **kwargs):
+        return self._text_client.complete_text(**kwargs)
+
+
 @pytest.fixture
 def site(db_session: Session) -> Site:
     site = Site(url="https://example.com", name="Example Co")

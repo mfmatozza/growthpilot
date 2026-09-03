@@ -16,3 +16,18 @@ class ArticleRead(BaseModel):
     article_type: ArticleType
     status: ArticleStatus
     created_at: datetime
+
+
+class ArticleDetailRead(ArticleRead):
+    outline: dict | None
+    body_markdown: str | None
+
+
+class GenerateArticleRequest(BaseModel):
+    site_id: int
+    keyword_id: int
+    article_type: ArticleType = ArticleType.informational
+
+
+class ArticleStatusUpdate(BaseModel):
+    status: ArticleStatus

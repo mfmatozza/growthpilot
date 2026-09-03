@@ -176,3 +176,45 @@ and rate limits are unverified. Treat the first real run as the actual test, not
 - Wired into the weekly scheduler (#20) at hour=5, staggered after audits (3) and GEO checks (4); skipped
   entirely, per site, if that site has no subreddits configured — same graceful-skip pattern as GEO
   providers.
+- Update: cross-checked the client_id+client_secret-only, no-username/password auth approach against
+  developers.reddit.com's server API docs after the user pointed to them — confirmed correct for 2026 (a
+  "script" app using the client_credentials grant is exactly the recommended path for read-only
+  server-side monitoring). No code changes needed.
+
+## 25. Module 2's SERP research uses SerpAPI only — no free scraper fallback, despite the brief allowing one
+The brief says "SerpAPI or a scraper fallback." Tried the scraper fallback for real before deciding against
+it: DuckDuckGo's HTML endpoint now returns a bot-detection challenge page (`anomaly.js`) instead of results,
+and Bing serves plausible-looking but completely wrong decoy results to non-browser clients (a real test:
+searching "best CRM software for small business" returned dictionary definitions of "best" and Best Buy's
+homepage — deliberate scraper poisoning, not a fluke). Shipping a "fallback" that silently feeds wrong
+competitor data into outline generation would be worse than no data at all. `research_competitor_structure`
+returns an empty list (not an error) whenever `SERPAPI_KEY` isn't configured, and `generate_outline`'s
+prompt is written to work either way — with competitor headings when available, from the model's own
+knowledge of the topic otherwise. Revisit if SerpAPI's cost becomes a problem; a paid alternative (or a
+proper headless-browser-based scraper, which is a much bigger lift than a simple HTTP GET) beats a fake
+free one.
+
+## 26. Article generation: no images, explicit anti-"AI-tell" instructions, real em-dash stripping
+Per explicit request — images were already unbuilt (no image API key configured), so dropping them was
+free; the em-dash/stock-phrase avoidance was added specifically to keep Google's AI-content signals from
+tripping on generated articles. `_HUMAN_VOICE_INSTRUCTION` is appended to every outline and section-drafting
+prompt (never use an em dash, avoid a named list of stock AI phrases, vary sentence length). Verified against
+the real API: a full 2265-word article came back with zero em dashes without needing the backstop. That
+backstop, `strip_em_dashes()`, still runs on every generated body regardless — a prompt instruction is not a
+guarantee, and it costs nothing to also mechanically remove any that slip through (substitutes a comma,
+which reads naturally in the large majority of real em-dash usages).
+The brief's "fact-check pass... web search via Claude's tool use" is intentionally simplified to prompt-level
+guidance instead: `_FACT_CHECK_NOTE` tells the model to tag any specific statistic/date/claim it isn't
+highly confident about with `[VERIFY]` inline, rather than actually performing a live web search. A real
+web-search-backed fact-check is a genuinely separate sub-project (hosted search tool wiring, cost, latency)
+— this got the "flag things a human should double-check" value without that scope, and is flagged here so
+it doesn't get mistaken for the fuller brief requirement.
+
+## 27. Article generation is wired into weekly automation as auto-DRAFT only, never auto-publish
+Per explicit request that the site "auto-updates." `run_weekly_article_drafts` (hour=6, after audits/GEO/
+Reddit) finds each site's approved keywords that don't have an article yet and drafts up to 2 per site per
+run — capped because an outline call plus one call per section (5-8 sections) adds up in cost/latency across
+every site. Drafts land at `ArticleStatus.draft`; nothing anywhere in this codebase has a code path that
+moves an article to `published` except a human clicking the status buttons in the UI (`PATCH
+/api/articles/{id}`) — the brief's "give me a review UI before anything auto-publishes" is a hard
+requirement, not a default that automation quietly bypasses.

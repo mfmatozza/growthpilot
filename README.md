@@ -118,7 +118,7 @@ Required to use each module:
 | Module | Needs |
 |---|---|
 | 1. Keyword research | `OPENAI_API_KEY` (site profile + candidates); `DATAFORSEO_LOGIN`/`DATAFORSEO_PASSWORD` optional (adds volume/difficulty — candidates still generate without it) |
-| 2. Article generation | not built yet — will need `OPENAI_API_KEY`; SERP research and images still need design decisions (SerpAPI vs. a scraper fallback, which image API) |
+| 2. Article generation | `OPENAI_API_KEY`; `SERPAPI_KEY` optional (competitor SERP research — works without it, from the model's own knowledge instead; see docs/DECISIONS.md #25). No image generation — images were dropped per explicit request |
 | 3. Technical audit | `OPENAI_API_KEY` (summarization); `GOOGLE_PAGESPEED_API_KEY` optional (PageSpeed Insights works keyless at low volume) |
 | 4. GEO tracker | at least one of `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GOOGLE_GEMINI_API_KEY` / `PERPLEXITY_API_KEY` — skips whichever aren't set rather than failing |
 | 5. Reddit monitor | `REDDIT_CLIENT_ID`/`REDDIT_CLIENT_SECRET` (a Reddit app registration only you can do) + `OPENAI_API_KEY`; site needs subreddits set (Reddit tab) |
@@ -129,7 +129,10 @@ Per the project brief's build order:
 
 1. ✅ Scaffolding — FastAPI backend, Postgres schema + Alembic migrations, Docker Compose, React shell with routing
 2. ✅ Module 1 (keyword research) — crawl → site profile → candidate keywords → DataForSEO enrichment → opportunity score → review UI (Keywords tab)
-3. ⬜ Module 2 (article generation) — DB table + read-only API + placeholder UI only; the largest remaining piece
+3. ✅ Module 2 (article generation) — outline → section-by-section draft → internal linking pass, Markdown
+   output, no images, explicit anti-AI-tell instructions (no em dashes, no stock phrasing — verified against
+   the real API). Comparison-mode template for multi-option articles. Wired into weekly automation as
+   auto-draft only (never auto-publish — see docs/DECISIONS.md #27)
 4. ✅ Module 4 (GEO tracker) — queries every configured provider (ChatGPT/Claude/Gemini/Perplexity) against your top approved keywords, analyzes mentions/competitors, visibility chart + "not yet mentioned" queue
 5. ✅ Module 3 (technical audit) — crawl checks (broken links, missing titles/meta/alt text, duplicate titles) + PageSpeed Insights, summarized and severity-ranked by an LLM
 6. ✅ Module 5 (Reddit monitor) — searches configured subreddits for approved keywords, drafts (never

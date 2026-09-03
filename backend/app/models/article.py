@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, ForeignKey, String, Text, func
+from sqlalchemy import JSON, DateTime, Enum, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -32,7 +32,8 @@ class Article(Base):
         Enum(ArticleType, native_enum=False), default=ArticleType.informational
     )
 
-    outline: Mapped[dict | None] = mapped_column(Text, nullable=True)  # JSON-encoded outline
+    # {"title": str, "sections": [{"heading": str, "key_points": [str]}], "differentiation_angle": str}
+    outline: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     body_markdown: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     status: Mapped[ArticleStatus] = mapped_column(

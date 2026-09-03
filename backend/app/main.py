@@ -7,7 +7,12 @@ from app.api.routes import articles, audit, auth, geo, health, keywords, reddit,
 from app.core.auth import require_auth
 from app.core.config import get_settings
 from app.scheduler import jobs
-from app.scheduler.scheduled_jobs import run_weekly_audits, run_weekly_geo_checks, run_weekly_reddit_monitor
+from app.scheduler.scheduled_jobs import (
+    run_weekly_article_drafts,
+    run_weekly_audits,
+    run_weekly_geo_checks,
+    run_weekly_reddit_monitor,
+)
 
 
 @asynccontextmanager
@@ -18,6 +23,7 @@ async def lifespan(app: FastAPI):
     jobs.add_cron_job(run_weekly_audits, job_id="weekly_audit", day_of_week="mon", hour=3)
     jobs.add_cron_job(run_weekly_geo_checks, job_id="weekly_geo_check", day_of_week="mon", hour=4)
     jobs.add_cron_job(run_weekly_reddit_monitor, job_id="weekly_reddit_monitor", day_of_week="mon", hour=5)
+    jobs.add_cron_job(run_weekly_article_drafts, job_id="weekly_article_drafts", day_of_week="mon", hour=6)
     yield
     jobs.shutdown()
 
