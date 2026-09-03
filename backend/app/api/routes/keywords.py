@@ -3,10 +3,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
-from app.models.keyword import Keyword
+from app.models.keyword import Keyword, KeywordStatus
 from app.models.site import Site
 from app.pipelines.keyword_research import run_keyword_research
-from app.schemas.keyword import KeywordRead, KeywordStatusUpdate, RunKeywordResearchRequest
+from app.schemas.keyword import ApproveAllRequest, KeywordRead, KeywordStatusUpdate, RunKeywordResearchRequest
 from app.services.crawler.base import FetchError
 from app.services.crawler.httpx_fetcher import HttpxFetcher
 from app.services.keyword_data.base import KeywordDataError
@@ -36,6 +36,28 @@ def update_keyword_status(keyword_id: int, payload: KeywordStatusUpdate, db: Ses
     db.commit()
     db.refresh(keyword)
     return keyword
+
+
+@router.post("/approve-all", response_model=list[KeywordRead])
+def approve_all_candidates(payload: ApproveAllRequest, db: Session = Depends(get_db)) -> list[Keyword]:
+    """Approves every `candidate` keyword for a site in one go — the
+    per-row Approve button still exists for picking and choosing, this is
+    for "yes, all of these are fine, move on"."""
+    site = db.get(Site, payload.site_id)
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+
+    candidates = list(
+        db.scalars(
+            select(Keyword).where(Keyword.site_id == payload.site_id, Keyword.status == KeywordStatus.candidate)
+        ).all()
+    )
+    for keyword in candidates:
+        keyword.status = KeywordStatus.approved
+    db.commit()
+    for keyword in candidates:
+        db.refresh(keyword)
+    return candidates
 
 
 @router.post("/research", response_model=list[KeywordRead], status_code=201)

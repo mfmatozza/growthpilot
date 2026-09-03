@@ -26,3 +26,7 @@ class KeywordStatusUpdate(BaseModel):
 
 class RunKeywordResearchRequest(BaseModel):
     site_id: int
+
+
+class ApproveAllRequest(BaseModel):
+    site_id: int

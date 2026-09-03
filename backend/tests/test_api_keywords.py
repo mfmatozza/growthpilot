@@ -30,6 +30,45 @@ def test_update_site_404_for_missing_site(client):
     assert response.status_code == 404
 
 
+def test_approve_all_only_touches_candidates_for_that_site(client, db_session, site):
+    other_site_resp = client.post("/api/sites", json={"url": "https://other.com", "name": "Other"})
+    other_site_id = other_site_resp.json()["id"]
+
+    db_session.add_all(
+        [
+            Keyword(site_id=site.id, keyword="a", status=KeywordStatus.candidate),
+            Keyword(site_id=site.id, keyword="b", status=KeywordStatus.candidate),
+            Keyword(site_id=site.id, keyword="c", status=KeywordStatus.rejected),
+            Keyword(site_id=other_site_id, keyword="d", status=KeywordStatus.candidate),
+        ]
+    )
+    db_session.commit()
+
+    response = client.post("/api/keywords/approve-all", json={"site_id": site.id})
+
+    assert response.status_code == 200
+    approved = response.json()
+    assert {k["keyword"] for k in approved} == {"a", "b"}
+    assert all(k["status"] == "approved" for k in approved)
+
+    # untouched: the rejected one for this site, and the other site's candidate
+    remaining = client.get(f"/api/keywords?site_id={site.id}&status=rejected").json()
+    assert len(remaining) == 1
+    other_site_keywords = client.get(f"/api/keywords?site_id={other_site_id}").json()
+    assert other_site_keywords[0]["status"] == "candidate"
+
+
+def test_approve_all_with_no_candidates_returns_empty_list(client, site):
+    response = client.post("/api/keywords/approve-all", json={"site_id": site.id})
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_approve_all_404_for_missing_site(client):
+    response = client.post("/api/keywords/approve-all", json={"site_id": 999})
+    assert response.status_code == 404
+
+
 def test_trigger_keyword_research_502_when_site_is_unreachable(client, site, monkeypatch):
     from app.core.config import get_settings
     from app.services.crawler.base import FetchError

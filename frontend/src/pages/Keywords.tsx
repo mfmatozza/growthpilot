@@ -17,6 +17,7 @@ export default function Keywords() {
   const [keywords, setKeywords] = useState<Keyword[]>([]);
   const [statusFilter, setStatusFilter] = useState<"all" | Keyword["status"]>("candidate");
   const [running, setRunning] = useState(false);
+  const [approvingAll, setApprovingAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadKeywords = () => api.get<Keyword[]>(`/api/keywords?site_id=${siteId}`).then(setKeywords);
@@ -43,7 +44,21 @@ export default function Keywords() {
     await loadKeywords();
   }
 
+  async function handleApproveAll() {
+    setApprovingAll(true);
+    setError(null);
+    try {
+      await api.post("/api/keywords/approve-all", { site_id: Number(siteId) });
+      await loadKeywords();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : String(err));
+    } finally {
+      setApprovingAll(false);
+    }
+  }
+
   const visibleKeywords = keywords.filter((k) => statusFilter === "all" || k.status === statusFilter);
+  const candidateCount = keywords.filter((k) => k.status === "candidate").length;
 
   return (
     <div>
@@ -60,18 +75,29 @@ export default function Keywords() {
 
       {error && <div className="mb-4 rounded-md bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
 
-      <div className="mb-3 flex gap-2">
-        {(["candidate", "approved", "rejected", "published", "all"] as const).map((s) => (
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex gap-2">
+          {(["candidate", "approved", "rejected", "published", "all"] as const).map((s) => (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                statusFilter === s ? "bg-brand-green text-black" : "bg-slate-100 text-slate-600"
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+        {candidateCount > 0 && (
           <button
-            key={s}
-            onClick={() => setStatusFilter(s)}
-            className={`rounded-full px-3 py-1 text-xs font-medium ${
-              statusFilter === s ? "bg-brand-green text-black" : "bg-slate-100 text-slate-600"
-            }`}
+            onClick={handleApproveAll}
+            disabled={approvingAll}
+            className="rounded-md border border-emerald-300 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
           >
-            {s}
+            {approvingAll ? "Approving…" : `Approve all (${candidateCount})`}
           </button>
-        ))}
+        )}
       </div>
 
       <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
