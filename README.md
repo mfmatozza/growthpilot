@@ -7,6 +7,14 @@ Modules: (1) keyword & topic research, (2) article generation, (3) technical SEO
 visibility tracking, (5) Reddit/community monitoring. Status of each — what's built vs. stubbed — is in
 [Build status](#build-status) below.
 
+## Live
+
+- Frontend: https://frontend-production-e032.up.railway.app
+- Backend: https://backend-production-24d1e.up.railway.app (docs at `/docs`)
+
+These are Railway's auto-generated domains (no custom domain attached). No API keys are configured on
+the deployed backend yet — see [Deployment](#deployment-railway) and [Config](#config) below.
+
 ## Stack
 
 - Backend: Python 3.11+, FastAPI, SQLAlchemy 2.0 + Alembic, PostgreSQL
@@ -63,6 +71,40 @@ pytest
 All external services (Claude, DataForSEO, the crawler's HTTP fetcher) are behind interfaces in
 `app/services/*` with fake/mock implementations in the same package, so the test suite runs with no
 network access and no API keys.
+
+## Deployment (Railway)
+
+Live project: both `backend` and `frontend` run as separate services in one Railway project, alongside a
+Postgres plugin, per docs/DECISIONS.md #14. Infrastructure is defined as code in `.railway/railway.ts`
+(Railway's IaC tool — `npm install` at the repo root pulls in the `railway` SDK it imports).
+
+To reproduce or modify:
+
+```bash
+npm install -g @railway/cli
+railway login
+railway link            # link this directory to the growthpilot project
+railway config plan     # preview drift between railway.ts and the live project
+railway config apply    # apply railway.ts
+```
+
+Each service auto-deploys on push to `main` (GitHub-connected, root directory set to `backend/` and
+`frontend/` respectively via `railway.ts`). A few things that don't live in `railway.ts` and were set
+by hand once — reproduce with `railway variable set` / `railway domain` if rebuilding from scratch:
+
+- `backend`'s `DATABASE_URL` references the Postgres plugin (`${{Postgres.DATABASE_URL}}`); the app
+  normalizes its `postgres(ql)://` scheme to `postgresql+psycopg://` itself (`app/core/config.py`).
+- `backend`'s `CORS_ALLOWED_ORIGINS` must include the frontend's public domain.
+- `frontend`'s `VITE_API_BASE_URL` must be the backend's public domain — it's a Docker **build arg**
+  (Vite inlines it at build time), so changing it requires `railway redeploy --from-source`, not just a
+  restart — see `frontend/Dockerfile` and docs/DECISIONS.md #14.
+- API keys (`ANTHROPIC_API_KEY` etc., see Config below) still need to be set on `backend` — none are
+  configured on the deployed project yet.
+- A freshly auto-generated Railway domain occasionally never wires up to its service (returns the
+  platform's own 404 "Application not found" indefinitely); deleting and recreating it with an explicit
+  `--port` fixed it every time this happened during setup.
+
+No secrets live in `railway.ts` — it references the Postgres plugin's variable rather than inlining it.
 
 ## Config
 

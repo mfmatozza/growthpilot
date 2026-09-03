@@ -1,0 +1,11 @@
+{
+  "name": "growthpilot-railway-config",
+  "private": true,
+  "description": "Repo-root package.json exists only to hold the Railway IaC SDK for .railway/railway.ts — the actual app lives in backend/ and frontend/.",
+  "devDependencies": {
+    "railway": "^3.11.0"
+  },
+  "allowScripts": {
+    "esbuild": true
+  }
+}
