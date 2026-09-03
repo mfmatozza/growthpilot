@@ -226,3 +226,41 @@ new Reddit opportunities) is already served by existing site-scoped GET endpoint
 client-side formatting over data already being fetched elsewhere in the app — no new API surface, nothing
 new to test on the backend. Checkboxes control which sections are included; the assembled text is built
 with `useMemo` and only touches `navigator.clipboard` on explicit copy, never sent anywhere on its own.
+Updated in #29: the Reddit checkbox/section was removed along with the rest of the frontend Reddit surface
+— see that entry.
+
+## 29. Module 5 (Reddit) hidden from the frontend entirely — backend kept as-is, per explicit request
+Reddit closed self-service OAuth app registration in late 2025 — new access now requires manual approval
+under a "Responsible Builder Policy" that, per multiple independent developer reports, explicitly
+deprioritizes personal/hobbyist projects (this is exactly what this project is, from Reddit's perspective).
+The old unauthenticated `.json` fallback was also blocked (403) as of May 2026, so there's no free read-only
+path left either — confirmed via web search, not assumed, after the user reported the registration flow no
+longer working. Decision #24's entire premise (a "script" app is quick and easy to get) is no longer true.
+
+Given a choice between (a) applying for official access anyway, (b) a paid pay-per-call third-party Reddit
+data API, or (c) shelving it, the user chose to keep the backend exactly as built (pipeline, routes, models,
+`PrawRedditClient`, the weekly scheduler job — all untouched, all still gracefully no-op without credentials)
+but remove every trace of it from the frontend: the nav link, the route, and the Reddit checkbox/section in
+the Claude Prompt digest (`Digest.tsx` no longer fetches or mentions `reddit_opportunities` at all).
+`Reddit.tsx` itself is intentionally still in the repo, just unrouted — re-wiring it later is one route line
+and one nav item, not a rebuild. Revisit if either Reddit's official approval comes through or a specific
+third-party provider gets picked.
+
+## 30. The Claude Prompt digest embeds real article content and concrete SEO/indexing instructions
+Per explicit follow-up — the first version only listed article titles/status, which gives a receiving Claude
+Code session nothing to actually publish, and no guidance on doing it in a way that's good for indexing. Now:
+- Up to 3 unpublished articles get their full `body_markdown` fetched (`GET /api/articles/{id}`) and embedded
+  verbatim in the prompt; anything beyond that cap is listed by title/slug with a pointer to fetch the rest,
+  since embedding every draft unbounded would make the prompt unusably large.
+- A publishing checklist is generated alongside embedded articles: exact slug as the URL, title/meta
+  description length limits, canonical tag, Open Graph/Twitter Card tags, preserving the Markdown's heading
+  hierarchy as-is, Article/BlogPosting JSON-LD, resolving every `[VERIFY]` tag before publishing (these come
+  from Module 2's fact-check simplification, decision #26), keeping internal links intact, and updating the
+  sitemap.
+- Explicitly told not to try Google's sitemap ping endpoint — it was deprecated in 2023 — and instead to
+  remind the user to request indexing per-URL via Search Console's URL Inspection tool. Getting this wrong
+  (having a future session waste time on a dead endpoint, or skip indexing entirely) would undercut the
+  entire point of the digest, so it's spelled out rather than assumed.
+- The opening line now explicitly tells the receiving session its working directory should be the target
+  site's own repo, not GrowthPilot's — this tool only ever produces content and data, it has no visibility
+  into any specific website's codebase to publish into.

@@ -10,8 +10,11 @@ import Keywords from "./pages/Keywords";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Overview from "./pages/Overview";
-import Reddit from "./pages/Reddit";
 import SitesHome from "./pages/SitesHome";
+
+// Reddit.tsx is intentionally not routed — see docs/DECISIONS.md #29.
+// The file stays in the repo, ready to re-wire the moment Reddit API
+// access exists.
 
 export default function App() {
   return (
@@ -27,7 +30,6 @@ export default function App() {
           <Route path="articles" element={<Articles />} />
           <Route path="audit" element={<Audit />} />
           <Route path="geo" element={<Geo />} />
-          <Route path="reddit" element={<Reddit />} />
           <Route path="digest" element={<Digest />} />
         </Route>
       </Route>

@@ -1,18 +1,30 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { api } from "../api/client";
-import type { Article, AuditFinding, GeoMention, Keyword, RedditOpportunity } from "../api/types";
+import type { Article, AuditFinding, GeoMention, Keyword } from "../api/types";
 import { useSiteContext } from "../siteContext";
 
-type SectionKey = "keywords" | "articles" | "audit" | "geo" | "reddit";
+// No Reddit section: that feature is hidden from the UI entirely right now
+// (Reddit closed self-service API registration — see docs/DECISIONS.md #29),
+// so reddit_opportunities is always empty and a checkbox for it would be dead weight.
+type SectionKey = "keywords" | "articles" | "audit" | "geo";
 
 const SECTIONS: { key: SectionKey; label: string }[] = [
   { key: "keywords", label: "Keywords awaiting review" },
   { key: "articles", label: "Draft/review articles" },
   { key: "audit", label: "Open technical issues" },
   { key: "geo", label: "GEO visibility gaps" },
-  { key: "reddit", label: "New Reddit opportunities" },
 ];
+
+// Full article bodies get embedded (not just title/status) so a fresh
+// session actually has content to place into the site, not just a pointer
+// — see docs/DECISIONS.md #30. Capped because embedding many full drafts
+// makes for an enormous prompt.
+const MAX_ARTICLE_BODIES_TO_EMBED = 3;
+
+interface ArticleDetail extends Article {
+  body_markdown: string | null;
+}
 
 export default function Digest() {
   const { siteId, site } = useSiteContext();
@@ -21,13 +33,12 @@ export default function Digest() {
     articles: true,
     audit: true,
     geo: true,
-    reddit: true,
   });
   const [keywords, setKeywords] = useState<Keyword[]>([]);
   const [articles, setArticles] = useState<Article[]>([]);
+  const [articleBodies, setArticleBodies] = useState<Record<number, string>>({});
   const [findings, setFindings] = useState<AuditFinding[]>([]);
   const [mentions, setMentions] = useState<GeoMention[]>([]);
-  const [opportunities, setOpportunities] = useState<RedditOpportunity[]>([]);
   const [copyLabel, setCopyLabel] = useState("Copy prompt");
 
   useEffect(() => {
@@ -35,18 +46,29 @@ export default function Digest() {
     api.get<Article[]>(`/api/articles?site_id=${siteId}`).then(setArticles);
     api.get<AuditFinding[]>(`/api/audit-findings?site_id=${siteId}`).then(setFindings);
     api.get<GeoMention[]>(`/api/geo-mentions?site_id=${siteId}`).then(setMentions);
-    api.get<RedditOpportunity[]>(`/api/reddit-opportunities?site_id=${siteId}`).then(setOpportunities);
   }, [siteId]);
 
   const unpublishedArticles = articles.filter((a) => a.status !== "published");
+
+  useEffect(() => {
+    const toFetch = unpublishedArticles.slice(0, MAX_ARTICLE_BODIES_TO_EMBED);
+    toFetch.forEach((a) => {
+      if (a.id in articleBodies) return;
+      api.get<ArticleDetail>(`/api/articles/${a.id}`).then((detail) => {
+        setArticleBodies((prev) => ({ ...prev, [a.id]: detail.body_markdown ?? "" }));
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [articles]);
+
   const openFindings = findings.filter((f) => !f.resolved_at);
   const notMentioned = mentions.filter((m) => !m.mentioned);
   const mentionRate = mentions.length ? Math.round(((mentions.length - notMentioned.length) / mentions.length) * 100) : null;
-  const newOpportunities = opportunities.filter((o) => o.status === "new");
 
   const prompt = useMemo(() => {
     const lines: string[] = [
-      `You're continuing SEO/GEO work on GrowthPilot for ${site?.name ?? "this site"} (${site?.url ?? ""}).`,
+      `You're continuing SEO/GEO work for ${site?.name ?? "this site"} (${site?.url ?? ""}). This session's ` +
+        `working directory should be that site's own codebase, not the GrowthPilot tool that produced this data.`,
       `Here's the current state, review it and tell me what you'd tackle first, or just dig in.`,
     ];
 
@@ -61,8 +83,33 @@ export default function Digest() {
     if (included.articles) {
       lines.push(`\n## Draft/review articles (${unpublishedArticles.length})`);
       if (unpublishedArticles.length === 0) lines.push("None in progress.");
-      for (const a of unpublishedArticles) {
-        lines.push(`- "${a.title}" (${a.status}, ${a.article_type}), /${a.slug}`);
+
+      const embedded = unpublishedArticles.slice(0, MAX_ARTICLE_BODIES_TO_EMBED);
+      const pointerOnly = unpublishedArticles.slice(MAX_ARTICLE_BODIES_TO_EMBED);
+
+      for (const a of embedded) {
+        lines.push(`\n### "${a.title}" (${a.status}, ${a.article_type}) — publish at slug: ${a.slug}`);
+        const body = articleBodies[a.id];
+        lines.push(body === undefined ? "(loading content…)" : body || "(empty draft)");
+      }
+      for (const a of pointerOnly) {
+        lines.push(`- "${a.title}" (${a.status}, ${a.article_type}), /${a.slug} — full body not embedded here, fetch it from GrowthPilot's GET /api/articles/${a.id} before publishing.`);
+      }
+
+      if (embedded.length > 0) {
+        lines.push(
+          `\n### Publishing checklist for the article(s) above (SEO/indexing)\n` +
+            `- Use each article's exact slug as the URL path segment, unchanged.\n` +
+            `- Set the page <title> to the article's title (or a compelling variant under 60 characters) and write a meta description under 160 characters summarizing it.\n` +
+            `- Add a canonical <link rel="canonical"> tag pointing at the final public URL for that page.\n` +
+            `- Add Open Graph and Twitter Card meta tags (og:title, og:description, og:url, og:type=article, twitter:card=summary_large_image).\n` +
+            `- Preserve the Markdown's heading hierarchy exactly as written (one H1, then H2s for each section) — don't flatten, reorder, or add headings that aren't there.\n` +
+            `- Add Article/BlogPosting JSON-LD structured data (headline, datePublished, author, publisher) if this site's stack supports structured data.\n` +
+            `- Resolve every [VERIFY] tag in the draft (confirm the claim is accurate or remove it) before publishing — never ship one as-is.\n` +
+            `- Keep the Markdown's internal links intact when converting to this site's format.\n` +
+            `- Add the new URL(s) to this site's sitemap.xml (or trigger its framework's sitemap regeneration) and confirm robots.txt doesn't disallow the path.\n` +
+            `- Google deprecated the sitemap ping endpoint in 2023 — don't try to ping it. After deploying, tell me to request indexing manually via Google Search Console's URL Inspection tool for each new URL.`
+        );
       }
     }
 
@@ -86,21 +133,15 @@ export default function Digest() {
       }
     }
 
-    if (included.reddit) {
-      lines.push(`\n## New Reddit opportunities (${newOpportunities.length})`);
-      if (newOpportunities.length === 0) lines.push("None new.");
-      for (const o of newOpportunities.slice(0, 20)) {
-        lines.push(`- r/${o.subreddit}, matched "${o.matched_keyword}": ${o.thread_url}`);
-      }
-    }
-
     lines.push(
-      `\n---\nWhen you're done, commit, push, and deploy on your own (this project auto-deploys on push to ` +
-        `main) and confirm it's actually live before you finish, so I don't have to do anything manually.`
+      `\n---\nBefore you finish: update the sitemap with any newly published URLs, verify the robots.txt ` +
+        `allows them, and remind me to request indexing for each one in Google Search Console (there's no ` +
+        `automatic ping anymore). Then commit, push, and deploy on your own (this project auto-deploys on ` +
+        `push to main) and confirm it's actually live, so I don't have to do anything manually.`
     );
 
     return lines.join("\n");
-  }, [included, keywords, unpublishedArticles, openFindings, mentions, notMentioned, mentionRate, newOpportunities, site]);
+  }, [included, keywords, unpublishedArticles, articleBodies, openFindings, mentions, notMentioned, mentionRate, site]);
 
   function toggle(key: SectionKey) {
     setIncluded((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -116,8 +157,8 @@ export default function Digest() {
     <div>
       <h1 className="mb-2 text-xl font-semibold">Claude Prompt</h1>
       <p className="mb-6 text-sm text-slate-500">
-        Pick what to include, then paste the generated prompt into a fresh Claude Code session to keep
-        working on this site from there.
+        Pick what to include, then paste the generated prompt into a fresh Claude Code session — running in
+        your actual website's repo, not this one — to publish and keep working from there.
       </p>
 
       <div className="mb-6 flex flex-wrap gap-4 rounded-lg border border-slate-200 bg-white p-4">

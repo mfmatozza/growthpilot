@@ -121,7 +121,7 @@ Required to use each module:
 | 2. Article generation | `OPENAI_API_KEY`; `SERPAPI_KEY` optional (competitor SERP research — works without it, from the model's own knowledge instead; see docs/DECISIONS.md #25). No image generation — images were dropped per explicit request |
 | 3. Technical audit | `OPENAI_API_KEY` (summarization); `GOOGLE_PAGESPEED_API_KEY` optional (PageSpeed Insights works keyless at low volume) |
 | 4. GEO tracker | at least one of `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GOOGLE_GEMINI_API_KEY` / `PERPLEXITY_API_KEY` — skips whichever aren't set rather than failing |
-| 5. Reddit monitor | `REDDIT_CLIENT_ID`/`REDDIT_CLIENT_SECRET` (a Reddit app registration only you can do) + `OPENAI_API_KEY`; site needs subreddits set (Reddit tab) |
+| 5. Reddit monitor | hidden from the UI — Reddit closed self-service API registration in late 2025, no path to credentials right now (docs/DECISIONS.md #29) |
 
 ## Build status
 
@@ -135,10 +135,10 @@ Per the project brief's build order:
    auto-draft only (never auto-publish — see docs/DECISIONS.md #27)
 4. ✅ Module 4 (GEO tracker) — queries every configured provider (ChatGPT/Claude/Gemini/Perplexity) against your top approved keywords, analyzes mentions/competitors, visibility chart + "not yet mentioned" queue
 5. ✅ Module 3 (technical audit) — crawl checks (broken links, missing titles/meta/alt text, duplicate titles) + PageSpeed Insights, summarized and severity-ranked by an LLM
-6. ✅ Module 5 (Reddit monitor) — searches configured subreddits for approved keywords, drafts (never
-   auto-posts) a reply for each new thread. Built and unit-tested against a fake client, but **not yet
-   verified against the real Reddit API** — REDDIT_CLIENT_ID/SECRET weren't available to test with when
-   this was built (see docs/DECISIONS.md #24)
+6. 🟡 Module 5 (Reddit monitor) — backend fully built (searches configured subreddits, drafts never-auto-
+   posted replies), but **hidden from the frontend entirely**: Reddit closed self-service API registration
+   in late 2025, so there's currently no path to real credentials (see docs/DECISIONS.md #29). All the code
+   is still there, ready to re-wire (one route + one nav item) the moment access exists.
 7. ✅ Scheduling/automation layer — Modules 3 and 4 run automatically every Monday, in-process (`app/scheduler/scheduled_jobs.py`); both also have manual "run now" buttons
 8. ⬜ Dashboard polish pass
 

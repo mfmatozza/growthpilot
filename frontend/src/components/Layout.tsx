@@ -20,7 +20,10 @@ export default function Layout() {
     { to: `/dashboard/sites/${siteId}/articles`, label: "Articles" },
     { to: `/dashboard/sites/${siteId}/audit`, label: "Technical Audit" },
     { to: `/dashboard/sites/${siteId}/geo`, label: "GEO Tracker" },
-    { to: `/dashboard/sites/${siteId}/reddit`, label: "Reddit Queue" },
+    // Reddit Queue tab hidden: Reddit closed self-service API registration
+    // in late 2025, no path to real credentials right now — see
+    // docs/DECISIONS.md #29. Backend (pipeline, routes, models, scheduler
+    // job) is untouched and ready the moment access exists.
     { to: `/dashboard/sites/${siteId}/digest`, label: "Claude Prompt" },
   ];
 
