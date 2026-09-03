@@ -41,6 +41,13 @@ export default function SitesHome() {
     navigate("/");
   }
 
+  async function handleRemove(e: React.MouseEvent, siteId: number) {
+    e.stopPropagation();
+    if (!window.confirm("Remove this website and everything tracked for it? This can't be undone.")) return;
+    await api.delete(`/api/sites/${siteId}`);
+    setSites((prev) => prev.filter((s) => s.id !== siteId));
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 px-6 py-10 md:px-12">
       <div className="mx-auto max-w-4xl">
@@ -96,15 +103,23 @@ export default function SitesHome() {
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {sites.map((site) => (
-              <button
+              <div
                 key={site.id}
                 onClick={() => navigate(`/dashboard/sites/${site.id}`)}
-                className="rounded-lg border border-slate-200 bg-white p-5 text-left hover:border-brand-green hover:shadow-sm"
+                className="cursor-pointer rounded-lg border border-slate-200 bg-white p-5 text-left hover:border-brand-green hover:shadow-sm"
               >
-                <div className="text-base font-semibold">{site.name}</div>
+                <div className="flex items-start justify-between">
+                  <div className="text-base font-semibold">{site.name}</div>
+                  <button
+                    onClick={(e) => handleRemove(e, site.id)}
+                    className="text-xs font-medium text-slate-300 hover:text-rose-500"
+                  >
+                    Remove
+                  </button>
+                </div>
                 <div className="mt-1 truncate text-sm text-slate-500">{site.url}</div>
                 <div className="mt-4 text-xs font-medium text-brand-green">Open dashboard →</div>
-              </button>
+              </div>
             ))}
           </div>
         )}

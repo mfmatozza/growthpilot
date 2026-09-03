@@ -32,3 +32,15 @@ def get_site(site_id: int, db: Session = Depends(get_db)) -> Site:
     if not site:
         raise HTTPException(status_code=404, detail="Site not found")
     return site
+
+
+@router.delete("/{site_id}", status_code=204)
+def delete_site(site_id: int, db: Session = Depends(get_db)) -> None:
+    """Cascades to that site's keywords/articles/audit findings/GEO
+    mentions/Reddit opportunities — every FK to sites.id is ondelete=CASCADE
+    (see app/models/*)."""
+    site = db.get(Site, site_id)
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+    db.delete(site)
+    db.commit()

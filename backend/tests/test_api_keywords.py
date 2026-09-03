@@ -10,6 +10,22 @@ def test_create_and_list_sites(client):
     assert response.json()[0]["name"] == "Acme"
 
 
+def test_delete_site_removes_it_and_its_keywords(client, db_session, site):
+    db_session.add(Keyword(site_id=site.id, keyword="a", status=KeywordStatus.candidate))
+    db_session.commit()
+
+    response = client.delete(f"/api/sites/{site.id}")
+    assert response.status_code == 204
+
+    assert client.get(f"/api/sites/{site.id}").status_code == 404
+    assert client.get(f"/api/keywords?site_id={site.id}").json() == []
+
+
+def test_delete_site_404_for_missing_site(client):
+    response = client.delete("/api/sites/999")
+    assert response.status_code == 404
+
+
 def test_create_site_conflicts_on_duplicate_url(client):
     client.post("/api/sites", json={"url": "https://acme.com", "name": "Acme"})
     response = client.post("/api/sites", json={"url": "https://acme.com", "name": "Acme Again"})

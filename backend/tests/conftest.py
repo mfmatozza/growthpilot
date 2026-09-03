@@ -8,7 +8,7 @@ os.environ.setdefault("SECRET_KEY", "test-secret-key")
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -24,6 +24,14 @@ TEST_AUTH_HEADERS = {"Authorization": "Bearer test-secret-key"}
 # see docs/DECISIONS.md if that ever needs to change.
 _engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
 _TestSessionLocal = sessionmaker(bind=_engine, autoflush=False, autocommit=False)
+
+
+@event.listens_for(_engine, "connect")
+def _enable_sqlite_fk_cascades(dbapi_connection, _):
+    # SQLite ignores ondelete="CASCADE" unless FK enforcement is turned on
+    # per-connection — without this, deleting a site would silently leave
+    # its keywords/articles/etc orphaned instead of cascading, unlike Postgres.
+    dbapi_connection.execute("PRAGMA foreign_keys=ON")
 
 
 @pytest.fixture
