@@ -1,0 +1,3 @@
+# Optional. Install only if you need JS-rendered crawling (see docs/DECISIONS.md #3).
+# pip install -r requirements-playwright.txt && playwright install chromium
+playwright==1.49.1

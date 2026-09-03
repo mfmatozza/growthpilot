@@ -1,0 +1,67 @@
+# Architecture decisions
+
+Judgment calls made without asking, and why. Revisit any of these if they stop fitting.
+
+## 1. Package manager: plain `requirements.txt`, not Poetry/PDM
+Keeps the Docker image simple and avoids a lockfile toolchain for a project that starts single-maintainer.
+Revisit if dependency conflicts get painful.
+
+## 2. Migrations: SQLAlchemy 2.0 + Alembic from day one, even for a single-site local DB
+Schema will change constantly across modules 1-5; hand-editing `create_all` state is a trap. Alembic is
+set up now so it's not a mid-project migration itself.
+
+## 3. Crawler: `httpx` + BeautifulSoup as the default, Playwright behind the same interface but not wired up
+Most marketing/blog sites are server-rendered enough for httpx+bs4, and it avoids shipping a Chromium
+binary in the base Docker image. `app/services/crawler/` defines a `PageFetcher` interface with an
+`HttpxFetcher` implementation; a `PlaywrightFetcher` can be dropped in later for JS-heavy sites without
+touching pipeline code. If your target site is a heavy SPA, say so and I'll wire Playwright in now.
+
+## 4. Claude model id is a config value, not a hardcoded string — and the default is NOT `claude-sonnet-4-6`
+The brief specifies `claude-sonnet-4-6`, which is not a real Anthropic model id as of this build (current
+generation is the Claude 5 family / Haiku 4.5). Rather than hardcode a guess, `CLAUDE_MODEL` is an env var
+(default `claude-sonnet-5`) read by `app/services/llm/anthropic_client.py`. Change it in `.env` to whatever
+id you actually want — no code change needed.
+
+## 5. Scheduling: APScheduler wrapped behind a minimal `JobScheduler` interface
+`app/scheduler/` exposes `add_job`/`run_now`/`list_jobs` on top of APScheduler's `BackgroundScheduler`.
+Pipelines never import APScheduler directly — they register a callable with the interface. Swapping in
+Celery + Redis later means writing one new adapter, not touching Modules 1-5.
+
+## 6. Multi-site seam: a `sites` table exists from the start, everything else has `site_id`
+Single-site mode just means "there is one row in `sites`". `keywords`, `articles`, `audit_findings`,
+`geo_mentions`, `reddit_opportunities` all FK to `sites.id`. This costs nothing now and avoids a painful
+retrofit later.
+
+## 7. No auth on the dashboard yet
+This is a local, self-hosted internal tool talking to a backend on localhost. Skipping auth for now.
+**Before deploying anywhere reachable off your machine, this needs at minimum HTTP basic auth or a
+reverse-proxy auth layer** — flagging so it doesn't get forgotten.
+
+## 8. Frontend: Vite + React + Tailwind (SPA), not Next.js
+The brief's Vercel target is a hosting choice, not a framework requirement — a plain Vite SPA deploys to
+Vercel fine (static build + Vercel's Vite preset) and keeps the frontend decoupled from the Python backend.
+No serverless API routes are used on the frontend side; the FastAPI backend is the only API.
+
+## 9. FastAPI backend is NOT deployed as Vercel serverless functions
+APScheduler needs a long-lived process to hold its in-memory job store and run cron jobs; Vercel serverless
+functions are stateless and spun down between invocations, so a scheduler can't live there. Recommended
+split: frontend (static SPA) on Vercel, backend + Postgres on a persistent host (Railway, Fly.io, a VPS, or
+just Docker Compose on your own box) — explicitly not Supabase, per the brief. Flagging this now so it's
+not a surprise at deploy time.
+
+## 10. DataForSEO over SerpAPI/Ahrefs API/Semrush API for keyword data
+Pay-per-call with no minimum subscription, which matches the "usage-based, no recurring SaaS" constraint
+better than the alternatives. SerpAPI is still used for Module 2's SERP-structure scraping (different job:
+live top-10 page content, not volume/difficulty numbers) since DataForSEO's SERP endpoints are pricier for
+that use case.
+
+## 11. Local dev port 3100 applies to the frontend only
+The brief's "everything on 3100" instruction is a frontend dev-server convention from the portfolio project.
+The FastAPI backend runs on 8000 (Docker Compose maps it as `8000:8000`) since nothing said otherwise and
+8000 is FastAPI's own convention; the frontend's Vite dev server proxies `/api` to it. Say the word if you
+want the backend on a different port too.
+
+## 12. Postgres host port is 5434, not 5432
+This machine already has another project's Postgres container bound to `localhost:5432`. Docker Compose
+maps GrowthPilot's `db` service to host port 5434 instead (container-internal port is still 5432, so this
+only affects connections from your host machine, e.g. a local non-Docker `uvicorn` or a GUI DB client).
