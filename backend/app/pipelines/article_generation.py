@@ -37,13 +37,20 @@ _FACT_CHECK_NOTE = (
     "publishing, and this is what they'll check first."
 )
 
+_LENGTH_INSTRUCTION = (
+    "Keep the whole article well under 2000 words total, shorter if the topic allows it — this is a hard "
+    "constraint, not a suggestion. Every sentence should earn its place; cut padding, throat-clearing, and "
+    "restating the same point twice."
+)
+
 _OUTLINE_SYSTEM = (
-    "You are an SEO content strategist producing a comprehensive article outline for a target keyword. "
+    "You are an SEO content strategist producing a tight, focused article outline for a target keyword. "
     "Respond only via the emit_result tool call with this exact JSON shape: "
     '{"title": string, "sections": [{"heading": string, "key_points": string[]}], '
-    '"differentiation_angle": string}. Produce 5-8 sections covering what genuinely useful content on this '
+    '"differentiation_angle": string}. Produce 4-5 sections covering what genuinely useful content on this '
     "topic needs — if competitor page structures are provided, use them as a reference for coverage; "
-    "otherwise rely on your own knowledge of what a thorough answer to this query looks like. "
+    "otherwise rely on your own knowledge of what a thorough answer to this query looks like. Favor fewer, "
+    "denser sections over many thin ones. " + _LENGTH_INSTRUCTION + " "
     "differentiation_angle is one genuine way this article can be more useful than typical results for "
     "this query (a sharper angle, more specific advice, or a real content gap). " + _HUMAN_VOICE_INSTRUCTION
 )
@@ -52,21 +59,24 @@ _COMPARISON_OUTLINE_SYSTEM = (
     "You are an SEO content strategist producing an outline for an UNBIASED multi-option comparison "
     "article. Respond only via the emit_result tool call with this exact JSON shape: "
     '{"title": string, "sections": [{"heading": string, "key_points": string[]}], '
-    '"differentiation_angle": string}. Structure: an intro section framing the decision, a section listing '
-    "comparison criteria, one section per option being compared (at least 3 options — infer genuinely "
-    "relevant options for this topic, not just the site's own product), a section presenting a Markdown "
-    "comparison table across the criteria, and a closing verdict section recommending different options "
-    "for different use cases. This must be genuinely unbiased — call out real tradeoffs and situations "
-    "where the site's own product/service is NOT the best fit, if it's one of the options. "
+    '"differentiation_angle": string}. Structure: a brief intro section framing the decision, a section '
+    "listing comparison criteria, one compact section per option being compared (3 options is enough — "
+    "infer genuinely relevant options for this topic, not just the site's own product), a section "
+    "presenting a Markdown comparison table across the criteria, and a short closing verdict section "
+    "recommending different options for different use cases. This must be genuinely unbiased — call out "
+    "real tradeoffs and situations where the site's own product/service is NOT the best fit, if it's one "
+    "of the options. " + _LENGTH_INSTRUCTION + " "
     "differentiation_angle should describe what makes this comparison more useful than a typical listicle. "
     + _HUMAN_VOICE_INSTRUCTION
 )
 
 _SECTION_DRAFTING_SYSTEM = (
-    "You write one section of a long-form article in Markdown, given the article's outline and any prior "
-    "sections already written (for continuity — don't repeat what's already covered). Write the section "
-    "body only — no heading line (added separately), no meta-commentary about what you're doing. Be "
-    "specific and genuinely useful, not filler. " + _HUMAN_VOICE_INSTRUCTION + " " + _FACT_CHECK_NOTE
+    "You write one section of an article in Markdown, given the article's outline and any prior sections "
+    "already written (for continuity — don't repeat what's already covered). Write the section body only — "
+    "no heading line (added separately), no meta-commentary about what you're doing. Be specific and "
+    "genuinely useful, not filler. Aim for roughly 100-180 words for this section — short and dense, not a "
+    "full essay; the whole article across all sections needs to land well under 2000 words. "
+    + _HUMAN_VOICE_INSTRUCTION + " " + _FACT_CHECK_NOTE
 )
 
 _INTERNAL_LINK_SYSTEM = (

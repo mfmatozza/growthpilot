@@ -264,3 +264,12 @@ Code session nothing to actually publish, and no guidance on doing it in a way t
 - The opening line now explicitly tells the receiving session its working directory should be the target
   site's own repo, not GrowthPilot's — this tool only ever produces content and data, it has no visibility
   into any specific website's codebase to publish into.
+
+## 31. Articles capped well under 2000 words, per explicit request ("reaches limits" otherwise)
+Earlier real runs came in at 2265-2440 words from an outline of 5-8 sections with no per-section length
+guidance. Cut the outline to 4-5 sections (comparison mode: 3 options instead of an open-ended count) and
+added an explicit ~100-180-word target per section plus a hard "well under 2000 words total" instruction on
+both the outline and section-drafting prompts. Verified against the real API, not just assumed from the
+prompt change: a real informational article came back at 932 words, a real comparison article (7 sections,
+inherently longer given 3 option write-ups + intro + criteria + table + verdict) at 1290 words — both
+comfortably under the limit, both still zero em dashes.
