@@ -65,3 +65,18 @@ want the backend on a different port too.
 This machine already has another project's Postgres container bound to `localhost:5432`. Docker Compose
 maps GrowthPilot's `db` service to host port 5434 instead (container-internal port is still 5432, so this
 only affects connections from your host machine, e.g. a local non-Docker `uvicorn` or a GUI DB client).
+
+## 13. Login is a client-side UX gate, not real authentication
+Per explicit request: a public marketing homepage (`/`) with a plain email/password form at `/login` that
+accepts anything and sets a `localStorage` flag, gating `/dashboard/*` via a `RequireAuth` route wrapper
+(`frontend/src/components/RequireAuth.tsx`, `frontend/src/auth.ts`). This is **not security** — it doesn't
+touch the backend, which still has no auth of its own (decision #7). Clearing localStorage or just calling
+the API directly bypasses it entirely. Fine for a single-operator internal tool; revisit before giving
+anyone else access.
+
+## 14. Both frontend and backend deploy to Railway, not Vercel + Railway
+Supersedes decision #9's split recommendation, per explicit request. Railway runs long-lived containers
+(unlike Vercel serverless functions), so it has no issue hosting APScheduler's persistent process — this
+also simplifies decision #9's original concern. See README's Railway section for the two-service setup
+(monorepo: `backend/` and `frontend/` each deploy from their own Dockerfile) and Postgres via Railway's
+plugin.

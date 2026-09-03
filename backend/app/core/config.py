@@ -44,7 +44,28 @@ class Settings(BaseSettings):
     # Single-site mode
     target_site_url: str = "https://example.com"
 
+    # Comma-separated. Always includes the local Vite dev server; add the
+    # deployed frontend's origin here in production (e.g. Railway's
+    # generated domain) — see docs/DECISIONS.md #14.
+    cors_allowed_origins: str = "http://localhost:3100"
+
+    @property
+    def cors_allowed_origins_list(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_allowed_origins.split(",") if origin.strip()]
+
 
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+def normalize_database_url(url: str) -> str:
+    """Railway's Postgres plugin (and most hosted Postgres providers) inject
+    DATABASE_URL as `postgres://` or `postgresql://`, not the
+    `postgresql+psycopg://` scheme SQLAlchemy needs to pick psycopg3. Rewrite
+    rather than requiring every deploy target to know our driver choice."""
+    if url.startswith("postgres://"):
+        return "postgresql+psycopg://" + url[len("postgres://") :]
+    if url.startswith("postgresql://"):
+        return "postgresql+psycopg://" + url[len("postgresql://") :]
+    return url
