@@ -1,6 +1,7 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import RotatingWord from "../components/RotatingWord";
+import MotionButton from "../components/ui/motion-button";
 
 const HOOK_WORDS = ["smarter", "faster", "everywhere", "automatically", "while you sleep"];
 
@@ -38,6 +39,8 @@ const FEATURES = [
 ];
 
 export default function Landing() {
+  const navigate = useNavigate();
+
   return (
     <div className="bg-white text-black">
       <header className="flex items-center justify-between border-b border-black px-6 py-5 md:px-12">
@@ -47,34 +50,43 @@ export default function Landing() {
         </Link>
       </header>
 
-      <section className="flex min-h-[calc(100vh-65px)] flex-col justify-between px-6 md:px-12">
-        <div className="flex flex-1 flex-col justify-center py-16">
-          <h1 className="max-w-4xl text-5xl font-bold leading-tight tracking-tight md:text-7xl">
+      <section className="grid grid-cols-1 gap-12 px-6 py-16 md:grid-cols-5 md:gap-8 md:px-12 md:py-24">
+        <div className="md:col-span-3">
+          <h1 className="text-5xl font-bold leading-tight tracking-tight md:text-7xl">
             Get found <RotatingWord words={HOOK_WORDS} />.
           </h1>
           <p className="mt-6 max-w-xl text-lg text-neutral-600">
             Keyword research, content, technical audits, and AI-search visibility — one tool, run on your
             own infrastructure, billed by the API call instead of the seat.
           </p>
-          <div>
-            <Link
-              to="/login"
-              className="mt-10 inline-block border border-black bg-brand-green px-8 py-3 text-sm font-semibold text-black hover:bg-black hover:text-brand-green"
-            >
-              Get started
-            </Link>
+          <div className="mt-10">
+            <MotionButton label="Get started" onClick={() => navigate("/login")} />
           </div>
+
+          <button
+            onClick={() => window.scrollTo({ top: window.innerHeight * 0.9, behavior: "smooth" })}
+            className="mt-16 flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-neutral-500 hover:text-black"
+          >
+            See what it does
+            <span aria-hidden className="animate-bounce">
+              ↓
+            </span>
+          </button>
         </div>
 
-        <button
-          onClick={() => window.scrollTo({ top: window.innerHeight, behavior: "smooth" })}
-          className="mb-8 flex items-center gap-2 self-start text-xs font-medium uppercase tracking-widest text-neutral-500 hover:text-black"
-        >
-          Scroll
-          <span aria-hidden className="animate-bounce">
-            ↓
-          </span>
-        </button>
+        <div className="border border-black p-6 md:col-span-2">
+          <div className="mb-4 text-xs font-semibold uppercase tracking-widest text-neutral-500">
+            One dashboard for
+          </div>
+          <ul className="space-y-4">
+            {FEATURES.map((f) => (
+              <li key={f.title} className="flex items-center gap-3 text-sm font-medium">
+                <span className={`h-2 w-2 shrink-0 ${f.accent === "green" ? "bg-brand-green" : "bg-brand-blue"}`} />
+                {f.title}
+              </li>
+            ))}
+          </ul>
+        </div>
       </section>
 
       <section className="border-t border-black px-6 py-20 md:px-12">

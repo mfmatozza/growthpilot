@@ -17,6 +17,15 @@ export default {
           blueSoft: "#BAE6FD",
           blueTint: "#EFF8FE",
         },
+        // shadcn-style semantic tokens (see src/index.css :root) — only
+        // defined because src/components/ui/* expects them, not used
+        // elsewhere in the app.
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
       },
     },
   },

@@ -2,6 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* shadcn-style semantic tokens, mapped to this app's existing pastel brand
+   colors rather than a separate theme — used by components under
+   src/components/ui/ that expect background/foreground/primary. */
+:root {
+  --background: 0 0% 100%;
+  --foreground: 0 0% 0%;
+  --primary: 160 84% 34%; /* brand.green, #0DA678 */
+  --primary-foreground: 0 0% 0%;
+}
+
 body {
   @apply bg-slate-50 text-slate-900;
 }
