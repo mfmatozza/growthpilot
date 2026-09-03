@@ -157,3 +157,22 @@ runs, many overlapping in theme) because nothing told the model what already exi
 is now listed in the prompt ("don't repeat these"), capped at 200 to bound prompt size, plus a real
 case-insensitive `dedupe_against_existing()` pass after generation as a backstop — the model mostly listens,
 but the pipeline doesn't rely on that alone.
+
+## 24. Module 5 (Reddit monitor) is fully built but NOT verified against the real Reddit API
+Unlike every other module this session, this one couldn't be tested end-to-end before the user provided
+Reddit credentials — it's built and thoroughly unit-tested against a fake client (`FakeRedditClient`), and
+`prawcore`'s exception class names (`RequestException`, `ResponseException`) were confirmed to actually
+exist by importing the installed package rather than assumed, but the real PRAW auth flow, search behavior,
+and rate limits are unverified. Treat the first real run as the actual test, not this commit.
+- Subreddits are configured per-site (`sites.subreddits`, comma-separated, editable via the existing
+  `PATCH /api/sites/{id}` and a form on the Reddit tab) rather than a single global list, consistent with
+  decision #17's per-site scoping.
+- Target keywords reuse Module 1's approved keywords (same pattern as Module 4's #21), independently
+  duplicated in `reddit_monitor.py` rather than imported from `geo_tracker.py` — small, and keeps the two
+  pipelines free to diverge (e.g. different caps) without coupling.
+- Read-only PRAW auth (client_id + client_secret only, no username/password) — this pipeline only ever
+  reads public posts and drafts replies for a human to review; it has no code path that could post to
+  Reddit even by accident.
+- Wired into the weekly scheduler (#20) at hour=5, staggered after audits (3) and GEO checks (4); skipped
+  entirely, per site, if that site has no subreddits configured — same graceful-skip pattern as GEO
+  providers.

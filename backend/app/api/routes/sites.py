@@ -43,6 +43,8 @@ def update_site(site_id: int, payload: SiteUpdate, db: Session = Depends(get_db)
         site.url = payload.url
     if payload.name is not None:
         site.name = payload.name
+    if payload.subreddits is not None:
+        site.subreddits = payload.subreddits
     db.commit()
     db.refresh(site)
     return site

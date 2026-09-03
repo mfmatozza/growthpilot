@@ -21,6 +21,10 @@ class Site(Base):
     #  "tone": str, "content_gaps": [str]}
     profile: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
+    # Comma-separated subreddit names (no "r/"), e.g. "SaaS,Entrepreneur".
+    # Module 5 monitors these against this site's approved keywords.
+    subreddits: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

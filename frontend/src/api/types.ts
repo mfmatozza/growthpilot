@@ -18,6 +18,7 @@ export interface Site {
   url: string;
   name: string;
   profile: Record<string, unknown> | null;
+  subreddits: string | null;
   created_at: string;
 }
 

@@ -20,8 +20,9 @@ class SiteCreate(BaseModel):
 class SiteUpdate(BaseModel):
     url: str | None = None
     name: str | None = None
+    subreddits: str | None = None
 
-    @field_validator("url", "name")
+    @field_validator("url", "name", "subreddits")
     @classmethod
     def strip_whitespace(cls, value: str | None) -> str | None:
         return value.strip() if value is not None else value
@@ -34,4 +35,5 @@ class SiteRead(BaseModel):
     url: str
     name: str
     profile: dict | None
+    subreddits: str | None
     created_at: datetime

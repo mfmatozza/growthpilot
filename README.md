@@ -121,7 +121,7 @@ Required to use each module:
 | 2. Article generation | not built yet — will need `OPENAI_API_KEY`; SERP research and images still need design decisions (SerpAPI vs. a scraper fallback, which image API) |
 | 3. Technical audit | `OPENAI_API_KEY` (summarization); `GOOGLE_PAGESPEED_API_KEY` optional (PageSpeed Insights works keyless at low volume) |
 | 4. GEO tracker | at least one of `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GOOGLE_GEMINI_API_KEY` / `PERPLEXITY_API_KEY` — skips whichever aren't set rather than failing |
-| 5. Reddit monitor | not built yet — needs `REDDIT_CLIENT_ID`/`REDDIT_CLIENT_SECRET` (a Reddit app registration only you can do) |
+| 5. Reddit monitor | `REDDIT_CLIENT_ID`/`REDDIT_CLIENT_SECRET` (a Reddit app registration only you can do) + `OPENAI_API_KEY`; site needs subreddits set (Reddit tab) |
 
 ## Build status
 
@@ -132,7 +132,10 @@ Per the project brief's build order:
 3. ⬜ Module 2 (article generation) — DB table + read-only API + placeholder UI only; the largest remaining piece
 4. ✅ Module 4 (GEO tracker) — queries every configured provider (ChatGPT/Claude/Gemini/Perplexity) against your top approved keywords, analyzes mentions/competitors, visibility chart + "not yet mentioned" queue
 5. ✅ Module 3 (technical audit) — crawl checks (broken links, missing titles/meta/alt text, duplicate titles) + PageSpeed Insights, summarized and severity-ranked by an LLM
-6. ⬜ Module 5 (Reddit monitor) — DB table + read/update API (status bookkeeping works) + UI only; blocked on Reddit API credentials
+6. ✅ Module 5 (Reddit monitor) — searches configured subreddits for approved keywords, drafts (never
+   auto-posts) a reply for each new thread. Built and unit-tested against a fake client, but **not yet
+   verified against the real Reddit API** — REDDIT_CLIENT_ID/SECRET weren't available to test with when
+   this was built (see docs/DECISIONS.md #24)
 7. ✅ Scheduling/automation layer — Modules 3 and 4 run automatically every Monday, in-process (`app/scheduler/scheduled_jobs.py`); both also have manual "run now" buttons
 8. ⬜ Dashboard polish pass
 

@@ -20,3 +20,7 @@ class RedditOpportunityRead(BaseModel):
 
 class RedditOpportunityStatusUpdate(BaseModel):
     status: RedditOpportunityStatus
+
+
+class RunRedditMonitorRequest(BaseModel):
+    site_id: int

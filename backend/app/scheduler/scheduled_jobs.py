@@ -14,10 +14,13 @@ from app.core.config import get_settings
 from app.db.session import SessionLocal
 from app.models.site import Site
 from app.pipelines.geo_tracker import get_available_providers, run_geo_check
+from app.pipelines.reddit_monitor import run_reddit_monitor
 from app.pipelines.technical_audit import run_technical_audit
 from app.services.crawler.httpx_fetcher import HttpxFetcher
 from app.services.llm.base import LLMError
 from app.services.llm.factory import get_default_llm_client
+from app.services.reddit.base import RedditError
+from app.services.reddit.praw_client import PrawRedditClient
 
 logger = logging.getLogger(__name__)
 
@@ -63,5 +66,31 @@ def run_weekly_geo_checks() -> None:
                 run_geo_check(db=db, site=site, providers=providers, analysis_llm=analysis_llm)
             except Exception:
                 logger.exception("Weekly GEO check failed for site %s (%s)", site.id, site.url)
+    finally:
+        db.close()
+
+
+def run_weekly_reddit_monitor() -> None:
+    db = SessionLocal()
+    try:
+        try:
+            reddit_client = PrawRedditClient()
+        except RedditError:
+            logger.info("Skipping weekly Reddit monitor — REDDIT_CLIENT_ID/REDDIT_CLIENT_SECRET not configured")
+            return
+        try:
+            llm = get_default_llm_client()
+        except LLMError:
+            logger.info("Skipping weekly Reddit monitor — no default LLM configured for draft replies")
+            return
+
+        sites = db.scalars(select(Site)).all()
+        for site in sites:
+            if not site.subreddits:
+                continue
+            try:
+                run_reddit_monitor(db=db, site=site, reddit_client=reddit_client, llm=llm)
+            except Exception:
+                logger.exception("Weekly Reddit monitor failed for site %s (%s)", site.id, site.url)
     finally:
         db.close()
