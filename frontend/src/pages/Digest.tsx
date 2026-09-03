@@ -88,12 +88,12 @@ export default function Digest() {
       const pointerOnly = unpublishedArticles.slice(MAX_ARTICLE_BODIES_TO_EMBED);
 
       for (const a of embedded) {
-        lines.push(`\n### "${a.title}" (${a.status}, ${a.article_type}) — publish at slug: ${a.slug}`);
+        lines.push(`\n### "${a.title}" (${a.status}, ${a.article_type}), publish at slug: ${a.slug}`);
         const body = articleBodies[a.id];
         lines.push(body === undefined ? "(loading content…)" : body || "(empty draft)");
       }
       for (const a of pointerOnly) {
-        lines.push(`- "${a.title}" (${a.status}, ${a.article_type}), /${a.slug} — full body not embedded here, fetch it from GrowthPilot's GET /api/articles/${a.id} before publishing.`);
+        lines.push(`- "${a.title}" (${a.status}, ${a.article_type}), /${a.slug}. Full body not embedded here, fetch it from GrowthPilot's GET /api/articles/${a.id} before publishing.`);
       }
 
       if (embedded.length > 0) {
@@ -103,12 +103,12 @@ export default function Digest() {
             `- Set the page <title> to the article's title (or a compelling variant under 60 characters) and write a meta description under 160 characters summarizing it.\n` +
             `- Add a canonical <link rel="canonical"> tag pointing at the final public URL for that page.\n` +
             `- Add Open Graph and Twitter Card meta tags (og:title, og:description, og:url, og:type=article, twitter:card=summary_large_image).\n` +
-            `- Preserve the Markdown's heading hierarchy exactly as written (one H1, then H2s for each section) — don't flatten, reorder, or add headings that aren't there.\n` +
+            `- Preserve the Markdown's heading hierarchy exactly as written (one H1, then H2s for each section). Don't flatten, reorder, or add headings that aren't there.\n` +
             `- Add Article/BlogPosting JSON-LD structured data (headline, datePublished, author, publisher) if this site's stack supports structured data.\n` +
-            `- Resolve every [VERIFY] tag in the draft (confirm the claim is accurate or remove it) before publishing — never ship one as-is.\n` +
+            `- Resolve every [VERIFY] tag in the draft (confirm the claim is accurate or remove it) before publishing. Never ship one as-is.\n` +
             `- Keep the Markdown's internal links intact when converting to this site's format.\n` +
             `- Add the new URL(s) to this site's sitemap.xml (or trigger its framework's sitemap regeneration) and confirm robots.txt doesn't disallow the path.\n` +
-            `- Google deprecated the sitemap ping endpoint in 2023 — don't try to ping it. After deploying, tell me to request indexing manually via Google Search Console's URL Inspection tool for each new URL.`
+            `- Google deprecated the sitemap ping endpoint in 2023, so don't try to ping it. After deploying, tell me to request indexing manually via Google Search Console's URL Inspection tool for each new URL.`
         );
       }
     }
@@ -157,8 +157,8 @@ export default function Digest() {
     <div>
       <h1 className="mb-2 text-xl font-semibold">Claude Prompt</h1>
       <p className="mb-6 text-sm text-slate-500">
-        Pick what to include, then paste the generated prompt into a fresh Claude Code session — running in
-        your actual website's repo, not this one — to publish and keep working from there.
+        Pick what to include, then paste the generated prompt into a fresh Claude Code session, running in
+        your actual website's repo (not this one), to publish and keep working from there.
       </p>
 
       <div className="mb-6 flex flex-wrap gap-4 rounded-lg border border-slate-200 bg-white p-4">
