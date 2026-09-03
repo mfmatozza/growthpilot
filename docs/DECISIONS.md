@@ -114,3 +114,35 @@ it: mark/accent hues `#0DA678` (green) and `#2A9BE0` (blue) pass CVD-separation 
 (`node scripts/validate_palette.js "#0DA678,#2A9BE0" --mode light`); lighter tints of the same hues
 (`brand.greenSoft`/`brand.blueSoft`/`*Tint`, see `frontend/tailwind.config.js`) are used for backgrounds/chips
 where a true pastel reads fine because they're not carrying a thin data-mark against white.
+
+## 19. Technical audit findings are a full snapshot each run, not diffed against prior wording
+Module 3's LLM summarization step rewrites each finding's description in its own words every run, so
+fuzzy-matching descriptions across runs to preserve `first_seen` continuity for a persisting issue isn't
+reliable without adding a stable key column (a real migration, deferred). Instead, each run marks every
+previously-open finding for the site resolved, then inserts a fresh set. Correct for "what's open right
+now, ranked by severity" (the actual UI need); loses "how long has this specific issue been open" — revisit
+if that history starts to matter, by adding a deterministic `raw_key` (page + check category) column and
+diffing on that instead of on the LLM's prose.
+
+## 20. GEO/audit "run now" is synchronous; weekly runs are wired via APScheduler in-process
+Per explicit request that automation not require "switching to another website" — `run_weekly_audits`/
+`run_weekly_geo_checks` (`app/scheduler/scheduled_jobs.py`) run inside the same backend process Railway
+already keeps alive (decision #14 is what makes this possible — a serverless backend couldn't hold
+APScheduler's job store). Each site is wrapped in its own try/except so one bad site doesn't kill the run
+for the rest. Manual "run now" buttons hit the same pipelines synchronously (same tradeoff as Module 1's
+`/api/keywords/research` — acceptable for a single-user tool, revisit if a run starts taking long enough to
+risk an HTTP timeout).
+
+## 21. GEO tracker's target queries are approved keywords directly, not a separate query list
+The brief allows either "seeded from Module 1's keyword list, or manually added." Built only the seeding
+path — a separate queries CRUD is a real feature with its own UI, deferred rather than half-built. Capped
+at the top 10 approved keywords by opportunity score per run, per site, to bound cost/latency on both the
+manual and scheduled paths (each query costs one answer call + one analysis call, per provider).
+
+## 22. Gemini and Perplexity clients are minimal, hand-rolled — not new SDKs
+Gemini: a small `httpx` REST wrapper against the Generative Language API, not the `google-generativeai`
+package — avoids a new heavy dependency for the one thing Module 4 needs (ask a question, get text back).
+Perplexity: its API is OpenAI-compatible, so `PerplexityClient` just points the existing `openai` SDK at
+`https://api.perplexity.ai` instead of writing a second HTTP client from scratch. Neither implements
+`complete_json` (raises `NotImplementedError`) — nothing in this codebase asks either of them for structured
+output yet; add it if that changes rather than guessing at the shape now.

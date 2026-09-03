@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { api } from "../api/client";
+import { api, ApiError } from "../api/client";
 import type { AuditFinding, Severity } from "../api/types";
 import Badge from "../components/Badge";
 import { useSiteContext } from "../siteContext";
@@ -15,19 +15,49 @@ const SEVERITY_TONE: Record<Severity, "neutral" | "positive" | "negative" | "war
 export default function Audit() {
   const { siteId } = useSiteContext();
   const [findings, setFindings] = useState<AuditFinding[]>([]);
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = () => api.get<AuditFinding[]>(`/api/audit-findings?site_id=${siteId}`).then(setFindings);
 
   useEffect(() => {
-    api.get<AuditFinding[]>(`/api/audit-findings?site_id=${siteId}`).then(setFindings);
+    load();
   }, [siteId]);
+
+  async function handleRun() {
+    setRunning(true);
+    setError(null);
+    try {
+      await api.post("/api/audit-findings/run", { site_id: Number(siteId) });
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : String(err));
+    } finally {
+      setRunning(false);
+    }
+  }
 
   const open = findings.filter((f) => !f.resolved_at);
 
   return (
     <div>
-      <h1 className="mb-2 text-xl font-semibold">Technical Audit</h1>
+      <div className="mb-2 flex items-center justify-between">
+        <h1 className="text-xl font-semibold">Technical Audit</h1>
+        <button
+          className="rounded-md bg-brand-green px-4 py-2 text-sm font-semibold text-black disabled:opacity-50"
+          onClick={handleRun}
+          disabled={running}
+        >
+          {running ? "Running audit…" : "Run audit now"}
+        </button>
+      </div>
       <p className="mb-6 text-sm text-slate-500">
-        Module 3 (Lighthouse + crawl auditor) isn't built yet — this will populate on its weekly run.
+        Runs automatically every Monday. A crawl (broken links, missing titles/meta/alt text, duplicate
+        titles) plus a PageSpeed Insights pass, summarized and ranked by severity.
       </p>
+
+      {error && <div className="mb-4 rounded-md bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
+
       <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
         <table className="w-full text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase text-slate-500">
@@ -52,7 +82,7 @@ export default function Audit() {
             {open.length === 0 && (
               <tr>
                 <td colSpan={4} className="px-4 py-8 text-center text-slate-400">
-                  No open issues.
+                  No open issues — run an audit to check.
                 </td>
               </tr>
             )}

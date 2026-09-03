@@ -12,20 +12,21 @@ visibility tracking, (5) Reddit/community monitoring. Status of each — what's 
 - Frontend: https://frontend-production-e032.up.railway.app
 - Backend: https://backend-production-24d1e.up.railway.app (docs at `/docs`)
 
-These are Railway's auto-generated domains (no custom domain attached). No API keys are configured on
-the deployed backend yet — see [Deployment](#deployment-railway) and [Config](#config) below.
+These are Railway's auto-generated domains (no custom domain attached). Login at `/login` — single admin
+account, see docs/DECISIONS.md #16 for how to change the password.
 
 ## Stack
 
 - Backend: Python 3.11+, FastAPI, SQLAlchemy 2.0 + Alembic, PostgreSQL
 - Frontend: React + TypeScript + Tailwind, Vite, React Router
-- LLM: Anthropic Claude API
-- Scheduling: APScheduler (seam to swap in Celery + Redis later — see decisions doc #5)
+- LLM: OpenAI by default, Anthropic as a one-line config swap (docs/DECISIONS.md #15)
+- Scheduling: APScheduler, running in-process — weekly technical audits and GEO checks fire on their own
+  once deployed, no external cron (`app/scheduler/scheduled_jobs.py`, decisions doc #20)
 
 ## Quickstart (Docker Compose)
 
 ```bash
-cp .env.example .env   # fill in at least ANTHROPIC_API_KEY to use Module 1/2
+cp .env.example .env   # fill in at least OPENAI_API_KEY, ADMIN_EMAIL, ADMIN_PASSWORD
 docker compose up --build
 ```
 
@@ -68,9 +69,9 @@ source .venv/bin/activate
 pytest
 ```
 
-All external services (Claude, DataForSEO, the crawler's HTTP fetcher) are behind interfaces in
-`app/services/*` with fake/mock implementations in the same package, so the test suite runs with no
-network access and no API keys.
+All external services (every LLM provider, DataForSEO, PageSpeed Insights, the crawler's HTTP fetcher) are
+behind interfaces in `app/services/*` with fake/mock implementations in the same package, so the test suite
+runs with no network access and no API keys.
 
 ## Deployment (Railway)
 
@@ -98,8 +99,8 @@ by hand once — reproduce with `railway variable set` / `railway domain` if reb
 - `frontend`'s `VITE_API_BASE_URL` must be the backend's public domain — it's a Docker **build arg**
   (Vite inlines it at build time), so changing it requires `railway redeploy --from-source`, not just a
   restart — see `frontend/Dockerfile` and docs/DECISIONS.md #14.
-- API keys (`ANTHROPIC_API_KEY` etc., see Config below) still need to be set on `backend` — none are
-  configured on the deployed project yet.
+- API keys (see Config below) are set on `backend` per the table there — `OPENAI_API_KEY`, `ADMIN_EMAIL`/
+  `ADMIN_PASSWORD` and the LLM/GEO/audit keys are live; DataForSEO, SerpAPI, image, and Reddit keys are not.
 - A freshly auto-generated Railway domain occasionally never wires up to its service (returns the
   platform's own 404 "Application not found" indefinitely); deleting and recreating it with an explicit
   `--port` fixed it every time this happened during setup.
@@ -116,11 +117,11 @@ Required to use each module:
 
 | Module | Needs |
 |---|---|
-| 1. Keyword research | `ANTHROPIC_API_KEY` (site profile + candidates); `DATAFORSEO_LOGIN`/`DATAFORSEO_PASSWORD` optional (adds volume/difficulty — candidates still generate without it) |
-| 2. Article generation | `ANTHROPIC_API_KEY`; `SERPAPI_KEY` for competitor SERP research; one of `FLUX_API_KEY` / `OPENAI_API_KEY_FOR_IMAGES` / `UNSPLASH_ACCESS_KEY` for images |
-| 3. Technical audit | none yet — not built |
-| 4. GEO tracker | none yet — not built (`OPENAI_API_KEY`, `GOOGLE_GEMINI_API_KEY`, `PERPLEXITY_API_KEY`, plus `ANTHROPIC_API_KEY`, will be needed once it is) |
-| 5. Reddit monitor | none yet — not built (`REDDIT_CLIENT_ID`/`REDDIT_CLIENT_SECRET` will be needed once it is) |
+| 1. Keyword research | `OPENAI_API_KEY` (site profile + candidates); `DATAFORSEO_LOGIN`/`DATAFORSEO_PASSWORD` optional (adds volume/difficulty — candidates still generate without it) |
+| 2. Article generation | not built yet — will need `OPENAI_API_KEY`; SERP research and images still need design decisions (SerpAPI vs. a scraper fallback, which image API) |
+| 3. Technical audit | `OPENAI_API_KEY` (summarization); `GOOGLE_PAGESPEED_API_KEY` optional (PageSpeed Insights works keyless at low volume) |
+| 4. GEO tracker | at least one of `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GOOGLE_GEMINI_API_KEY` / `PERPLEXITY_API_KEY` — skips whichever aren't set rather than failing |
+| 5. Reddit monitor | not built yet — needs `REDDIT_CLIENT_ID`/`REDDIT_CLIENT_SECRET` (a Reddit app registration only you can do) |
 
 ## Build status
 
@@ -128,11 +129,11 @@ Per the project brief's build order:
 
 1. ✅ Scaffolding — FastAPI backend, Postgres schema + Alembic migrations, Docker Compose, React shell with routing
 2. ✅ Module 1 (keyword research) — crawl → site profile → candidate keywords → DataForSEO enrichment → opportunity score → review UI (Keywords tab)
-3. ⬜ Module 2 (article generation) — DB table + read-only API + placeholder UI only
-4. ⬜ Module 4 (GEO tracker) — DB table + read-only API + placeholder UI (chart, "not yet mentioned" queue) only
-5. ⬜ Module 3 (technical audit) — DB table + read-only API + placeholder UI only
-6. ⬜ Module 5 (Reddit monitor) — DB table + read/update API (status bookkeeping works) + UI only
-7. ⬜ Scheduling/automation layer — the `app/scheduler` seam exists, no jobs registered yet
+3. ⬜ Module 2 (article generation) — DB table + read-only API + placeholder UI only; the largest remaining piece
+4. ✅ Module 4 (GEO tracker) — queries every configured provider (ChatGPT/Claude/Gemini/Perplexity) against your top approved keywords, analyzes mentions/competitors, visibility chart + "not yet mentioned" queue
+5. ✅ Module 3 (technical audit) — crawl checks (broken links, missing titles/meta/alt text, duplicate titles) + PageSpeed Insights, summarized and severity-ranked by an LLM
+6. ⬜ Module 5 (Reddit monitor) — DB table + read/update API (status bookkeeping works) + UI only; blocked on Reddit API credentials
+7. ✅ Scheduling/automation layer — Modules 3 and 4 run automatically every Monday, in-process (`app/scheduler/scheduled_jobs.py`); both also have manual "run now" buttons
 8. ⬜ Dashboard polish pass
 
 ## Architecture decisions

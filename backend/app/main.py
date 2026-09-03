@@ -7,11 +7,16 @@ from app.api.routes import articles, audit, auth, geo, health, keywords, reddit,
 from app.core.auth import require_auth
 from app.core.config import get_settings
 from app.scheduler import jobs
+from app.scheduler.scheduled_jobs import run_weekly_audits, run_weekly_geo_checks
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     jobs.start()
+    # Runs inside this process — no external cron, nothing else to set up.
+    # Staggered an hour apart so they don't compete for the same rate limits.
+    jobs.add_cron_job(run_weekly_audits, job_id="weekly_audit", day_of_week="mon", hour=3)
+    jobs.add_cron_job(run_weekly_geo_checks, job_id="weekly_geo_check", day_of_week="mon", hour=4)
     yield
     jobs.shutdown()
 

@@ -48,9 +48,18 @@ class Settings(BaseSettings):
     openai_api_key_for_images: str = ""
     unsplash_access_key: str = ""
 
-    # GEO tracker
+    # GEO tracker. OpenAI (openai_api_key above) and Anthropic
+    # (anthropic_api_key above, if set) are reused as-is; Gemini/Perplexity
+    # are additional opt-in providers — the tracker skips whichever of the
+    # four has no key configured rather than failing the whole run.
     google_gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.0-flash"
     perplexity_api_key: str = ""
+    perplexity_model: str = "sonar"
+
+    # Technical audit (Module 3). Optional — PageSpeed Insights works keyless
+    # at low volume, a key just raises the rate limit. Free either way.
+    google_pagespeed_api_key: str = ""
 
     # Reddit
     reddit_client_id: str = ""

@@ -5,6 +5,10 @@ from pydantic import BaseModel, ConfigDict
 from app.models.geo_mention import GeoProvider
 
 
+class RunGeoCheckRequest(BaseModel):
+    site_id: int
+
+
 class GeoMentionRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
