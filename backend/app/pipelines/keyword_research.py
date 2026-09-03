@@ -7,6 +7,7 @@ that touches the DB or does network I/O, everything else is pure given its
 inputs.
 """
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.keyword import Keyword, KeywordStatus
@@ -27,12 +28,17 @@ _SITE_PROFILE_SYSTEM = (
 )
 
 _KEYWORD_CANDIDATES_SYSTEM = (
-    "You are an SEO strategist generating informational keyword/topic ideas. "
+    "You are an SEO strategist generating informational keyword/topic ideas, with a strong bias toward "
+    "long-tail keywords — specific, multi-word phrases with clear search intent and lower competition. "
+    "Long-tail phrases are what actually get a smaller or newer site found in organic search; broad "
+    "head terms (1-2 generic words) are dominated by sites with far more domain authority and rarely "
+    "convert into real traffic for a site like this. "
     "Respond only via the emit_result tool call with this exact JSON shape: "
     '{"keywords": [{"keyword": string, "rationale": string, "relevance_score": number}]}. '
     "relevance_score is 0-100, your judgment of how directly this topic serves "
-    "the site's target audience and business. Generate between 30 and 50 items. "
-    "Favor specific, intent-clear phrases over generic single words."
+    "the site's target audience and business. Generate between 30 and 50 items, and make at least "
+    "two-thirds of them genuine long-tail phrases (four or more words, specific enough that they "
+    "plausibly rank without needing high domain authority) rather than short generic head terms."
 )
 
 
@@ -62,15 +68,21 @@ def parse_site_profile(raw: dict) -> dict:
     }
 
 
-def build_keyword_candidates_prompt(profile: dict) -> str:
-    return (
+def build_keyword_candidates_prompt(profile: dict, existing_keywords: list[str] | None = None) -> str:
+    prompt = (
         "Business summary: " + profile.get("business_summary", "") + "\n"
         "Target audience: " + profile.get("target_audience", "") + "\n"
         "Existing content topics: " + ", ".join(profile.get("existing_topics", [])) + "\n"
         "Known content gaps: " + ", ".join(profile.get("content_gaps", [])) + "\n\n"
         "Generate 30-50 informational keyword/topic candidates this business should "
-        "target, each with a one-sentence rationale."
+        "target, each with a one-sentence rationale. Most should be long-tail phrases, per your instructions."
     )
+    if existing_keywords:
+        prompt += (
+            "\n\nAlready targeting these from a previous run — do not repeat them or suggest close "
+            "variants of them: " + ", ".join(existing_keywords)
+        )
+    return prompt
 
 
 def parse_keyword_candidates(raw: dict) -> list[dict]:
@@ -104,9 +116,20 @@ def analyze_site(pages: list[PageContent], llm: LLMClient) -> dict:
     return parse_site_profile(raw)
 
 
-def generate_keyword_candidates(profile: dict, llm: LLMClient) -> list[dict]:
-    raw = llm.complete_json(system=_KEYWORD_CANDIDATES_SYSTEM, user=build_keyword_candidates_prompt(profile))
+def generate_keyword_candidates(profile: dict, llm: LLMClient, existing_keywords: list[str] | None = None) -> list[dict]:
+    raw = llm.complete_json(
+        system=_KEYWORD_CANDIDATES_SYSTEM, user=build_keyword_candidates_prompt(profile, existing_keywords)
+    )
     return parse_keyword_candidates(raw)
+
+
+def dedupe_against_existing(candidates: list[dict], existing_keywords: list[str]) -> list[dict]:
+    """Belt-and-suspenders on top of asking the model not to repeat itself
+    (build_keyword_candidates_prompt) — it doesn't always listen, confirmed
+    by a real site accumulating near-duplicate candidates across repeated
+    runs. Exact case-insensitive match only; doesn't try to catch near-dupes."""
+    existing_lower = {k.lower() for k in existing_keywords}
+    return [c for c in candidates if c["keyword"].lower() not in existing_lower]
 
 
 def enrich_candidates(candidates: list[dict], provider: KeywordDataProvider) -> list[dict]:
@@ -151,7 +174,11 @@ def run_keyword_research(
     site.profile = profile
     db.add(site)
 
-    candidates = generate_keyword_candidates(profile, llm)
+    existing_keywords = list(db.scalars(select(Keyword.keyword).where(Keyword.site_id == site.id)).all())
+    # Capped in the prompt to keep it from growing unbounded after many runs —
+    # the post-generation dedupe below still checks against the full set.
+    candidates = generate_keyword_candidates(profile, llm, existing_keywords=existing_keywords[:200])
+    candidates = dedupe_against_existing(candidates, existing_keywords)
 
     if keyword_data_provider is not None:
         candidates = enrich_candidates(candidates, keyword_data_provider)
@@ -186,6 +213,7 @@ def run_keyword_research(
 __all__ = [
     "analyze_site",
     "generate_keyword_candidates",
+    "dedupe_against_existing",
     "enrich_candidates",
     "run_keyword_research",
     "build_site_profile_prompt",

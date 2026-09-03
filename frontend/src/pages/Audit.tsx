@@ -37,23 +37,41 @@ export default function Audit() {
     }
   }
 
+  async function handleExport() {
+    setError(null);
+    try {
+      await api.download(`/api/audit-findings/export?site_id=${siteId}`, `audit-findings-site-${siteId}.csv`);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : String(err));
+    }
+  }
+
   const open = findings.filter((f) => !f.resolved_at);
 
   return (
     <div>
       <div className="mb-2 flex items-center justify-between">
         <h1 className="text-xl font-semibold">Technical Audit</h1>
-        <button
-          className="rounded-md bg-brand-green px-4 py-2 text-sm font-semibold text-black disabled:opacity-50"
-          onClick={handleRun}
-          disabled={running}
-        >
-          {running ? "Running audit…" : "Run audit now"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            className="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            onClick={handleExport}
+          >
+            Export CSV
+          </button>
+          <button
+            className="rounded-md bg-brand-green px-4 py-2 text-sm font-semibold text-black disabled:opacity-50"
+            onClick={handleRun}
+            disabled={running}
+          >
+            {running ? "Running audit…" : "Run audit now"}
+          </button>
+        </div>
       </div>
       <p className="mb-6 text-sm text-slate-500">
         Runs automatically every Monday. A crawl (broken links, missing titles/meta/alt text, duplicate
-        titles) plus a PageSpeed Insights pass, summarized and ranked by severity.
+        titles) plus a PageSpeed Insights pass, summarized and ranked by severity. The table below shows
+        open issues only — "Export CSV" includes resolved ones too, for a full record.
       </p>
 
       {error && <div className="mb-4 rounded-md bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}

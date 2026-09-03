@@ -146,3 +146,14 @@ Perplexity: its API is OpenAI-compatible, so `PerplexityClient` just points the 
 `https://api.perplexity.ai` instead of writing a second HTTP client from scratch. Neither implements
 `complete_json` (raises `NotImplementedError`) — nothing in this codebase asks either of them for structured
 output yet; add it if that changes rather than guessing at the shape now.
+
+## 23. Keyword generation is biased toward long-tail phrases, and dedupes against prior runs
+Per explicit request ("long tail ones are what get you found"). `_KEYWORD_CANDIDATES_SYSTEM` now asks for
+at least two-thirds long-tail (4+ word) phrases explicitly, with the reasoning stated in the prompt itself
+(head terms need domain authority a smaller site doesn't have) rather than just an instruction — verified
+against the real API: 43/43 candidates came back 4+ words on one real run. Separately, repeated runs on the
+same site were piling up near-duplicate candidates (confirmed on a real site: 54 candidates after a few
+runs, many overlapping in theme) because nothing told the model what already existed. Existing keyword text
+is now listed in the prompt ("don't repeat these"), capped at 200 to bound prompt size, plus a real
+case-insensitive `dedupe_against_existing()` pass after generation as a backstop — the model mostly listens,
+but the pipeline doesn't rely on that alone.

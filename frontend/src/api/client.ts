@@ -36,6 +36,30 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+async function download(path: string, filename: string): Promise<void> {
+  // Not routed through request() — a file download needs the raw Blob, not
+  // JSON, but still needs the same auth header and 401 handling.
+  const token = getToken();
+  const response = await fetch(`${BASE_URL}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (response.status === 401) {
+    logOut();
+    window.location.href = "/login";
+    throw new ApiError(401, "Not authenticated");
+  }
+  if (!response.ok) {
+    throw new ApiError(response.status, await response.text());
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export const api = {
   get: <T,>(path: string) => request<T>(path),
   post: <T,>(path: string, body?: unknown) =>
@@ -43,4 +67,5 @@ export const api = {
   patch: <T,>(path: string, body?: unknown) =>
     request<T>(path, { method: "PATCH", body: body ? JSON.stringify(body) : undefined }),
   delete: <T,>(path: string) => request<T>(path, { method: "DELETE" }),
+  download,
 };
