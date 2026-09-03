@@ -10,6 +10,7 @@ import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Overview from "./pages/Overview";
 import Reddit from "./pages/Reddit";
+import SitesHome from "./pages/SitesHome";
 
 export default function App() {
   return (
@@ -18,7 +19,8 @@ export default function App() {
       <Route path="/login" element={<Login />} />
 
       <Route element={<RequireAuth />}>
-        <Route path="/dashboard" element={<Layout />}>
+        <Route path="/dashboard" element={<SitesHome />} />
+        <Route path="/dashboard/sites/:siteId" element={<Layout />}>
           <Route index element={<Overview />} />
           <Route path="keywords" element={<Keywords />} />
           <Route path="articles" element={<Articles />} />

@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 
 import { api, ApiError } from "../api/client";
-import type { Keyword, Site } from "../api/types";
+import type { Keyword } from "../api/types";
 import Badge from "../components/Badge";
+import { useSiteContext } from "../siteContext";
 
 const STATUS_TONE: Record<Keyword["status"], "neutral" | "positive" | "negative" | "warning"> = {
   candidate: "warning",
@@ -12,53 +13,24 @@ const STATUS_TONE: Record<Keyword["status"], "neutral" | "positive" | "negative"
 };
 
 export default function Keywords() {
-  const [sites, setSites] = useState<Site[]>([]);
-  const [selectedSiteId, setSelectedSiteId] = useState<number | null>(null);
+  const { siteId } = useSiteContext();
   const [keywords, setKeywords] = useState<Keyword[]>([]);
   const [statusFilter, setStatusFilter] = useState<"all" | Keyword["status"]>("candidate");
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [newSiteUrl, setNewSiteUrl] = useState("");
-  const [newSiteName, setNewSiteName] = useState("");
-
-  const loadSites = () => api.get<Site[]>("/api/sites").then(setSites);
-  const loadKeywords = (siteId: number) =>
-    api.get<Keyword[]>(`/api/keywords?site_id=${siteId}`).then(setKeywords);
+  const loadKeywords = () => api.get<Keyword[]>(`/api/keywords?site_id=${siteId}`).then(setKeywords);
 
   useEffect(() => {
-    loadSites().catch((err) => setError(String(err)));
-  }, []);
-
-  useEffect(() => {
-    if (selectedSiteId === null && sites.length > 0) setSelectedSiteId(sites[0].id);
-  }, [sites, selectedSiteId]);
-
-  useEffect(() => {
-    if (selectedSiteId !== null) loadKeywords(selectedSiteId).catch((err) => setError(String(err)));
-  }, [selectedSiteId]);
-
-  async function handleCreateSite(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    try {
-      const site = await api.post<Site>("/api/sites", { url: newSiteUrl, name: newSiteName });
-      setNewSiteUrl("");
-      setNewSiteName("");
-      await loadSites();
-      setSelectedSiteId(site.id);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : String(err));
-    }
-  }
+    loadKeywords().catch((err) => setError(err instanceof ApiError ? err.message : String(err)));
+  }, [siteId]);
 
   async function handleRunResearch() {
-    if (selectedSiteId === null) return;
     setRunning(true);
     setError(null);
     try {
-      await api.post("/api/keywords/research", { site_id: selectedSiteId });
-      await loadKeywords(selectedSiteId);
+      await api.post("/api/keywords/research", { site_id: Number(siteId) });
+      await loadKeywords();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : String(err));
     } finally {
@@ -68,66 +40,25 @@ export default function Keywords() {
 
   async function handleStatusChange(id: number, status: Keyword["status"]) {
     await api.patch<Keyword>(`/api/keywords/${id}`, { status });
-    if (selectedSiteId !== null) await loadKeywords(selectedSiteId);
+    await loadKeywords();
   }
 
   const visibleKeywords = keywords.filter((k) => statusFilter === "all" || k.status === statusFilter);
 
   return (
     <div>
-      <h1 className="mb-6 text-xl font-semibold">Keywords</h1>
-
-      {error && (
-        <div className="mb-4 rounded-md bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>
-      )}
-
-      <div className="mb-6 flex flex-wrap items-end gap-4 rounded-lg border border-slate-200 bg-white p-4">
-        <div>
-          <label className="mb-1 block text-xs font-medium text-slate-500">Site</label>
-          <select
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
-            value={selectedSiteId ?? ""}
-            onChange={(e) => setSelectedSiteId(Number(e.target.value))}
-          >
-            {sites.map((site) => (
-              <option key={site.id} value={site.id}>
-                {site.name} ({site.url})
-              </option>
-            ))}
-          </select>
-        </div>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-xl font-semibold">Keywords</h1>
         <button
-          className="rounded-md bg-slate-900 px-4 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+          className="rounded-md bg-brand-green px-4 py-2 text-sm font-semibold text-black disabled:opacity-50"
           onClick={handleRunResearch}
-          disabled={selectedSiteId === null || running}
+          disabled={running}
         >
           {running ? "Running keyword research…" : "Run keyword research"}
         </button>
-
-        <form onSubmit={handleCreateSite} className="ml-auto flex items-end gap-2">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-slate-500">Add site — name</label>
-            <input
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
-              value={newSiteName}
-              onChange={(e) => setNewSiteName(e.target.value)}
-              placeholder="Acme Co"
-              required
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-slate-500">URL</label>
-            <input
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
-              value={newSiteUrl}
-              onChange={(e) => setNewSiteUrl(e.target.value)}
-              placeholder="https://acme.com"
-              required
-            />
-          </div>
-          <button className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium">Add</button>
-        </form>
       </div>
+
+      {error && <div className="mb-4 rounded-md bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
 
       <div className="mb-3 flex gap-2">
         {(["candidate", "approved", "rejected", "published", "all"] as const).map((s) => (
@@ -135,7 +66,7 @@ export default function Keywords() {
             key={s}
             onClick={() => setStatusFilter(s)}
             className={`rounded-full px-3 py-1 text-xs font-medium ${
-              statusFilter === s ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600"
+              statusFilter === s ? "bg-brand-green text-black" : "bg-slate-100 text-slate-600"
             }`}
           >
             {s}
@@ -190,7 +121,7 @@ export default function Keywords() {
             {visibleKeywords.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
-                  No keywords yet — pick a site and run keyword research.
+                  No keywords yet — run keyword research to get started.
                 </td>
               </tr>
             )}

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { AuditFinding, Severity } from "../api/types";
 import Badge from "../components/Badge";
+import { useSiteContext } from "../siteContext";
 
 const SEVERITY_TONE: Record<Severity, "neutral" | "positive" | "negative" | "warning"> = {
   critical: "negative",
@@ -12,11 +13,12 @@ const SEVERITY_TONE: Record<Severity, "neutral" | "positive" | "negative" | "war
 };
 
 export default function Audit() {
+  const { siteId } = useSiteContext();
   const [findings, setFindings] = useState<AuditFinding[]>([]);
 
   useEffect(() => {
-    api.get<AuditFinding[]>("/api/audit-findings").then(setFindings);
-  }, []);
+    api.get<AuditFinding[]>(`/api/audit-findings?site_id=${siteId}`).then(setFindings);
+  }, [siteId]);
 
   const open = findings.filter((f) => !f.resolved_at);
 

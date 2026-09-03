@@ -1,16 +1,21 @@
-// Not real authentication — a client-side UX gate only, per project decision
-// (docs/DECISIONS.md #13). Nothing here should be trusted as a security
-// boundary; the backend still has no auth of its own (decision #7).
-const AUTH_KEY = "gp_authed";
+// Real check now: the token comes from POST /api/auth/login, verified
+// server-side against ADMIN_EMAIL/ADMIN_PASSWORD (docs/DECISIONS.md #16).
+// localStorage here is just where the browser keeps the token between
+// visits — the actual gate is the backend rejecting bad/missing tokens.
+const TOKEN_KEY = "gp_token";
 
-export function isAuthed(): boolean {
-  return localStorage.getItem(AUTH_KEY) === "true";
+export function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
 }
 
-export function logIn(): void {
-  localStorage.setItem(AUTH_KEY, "true");
+export function isAuthed(): boolean {
+  return getToken() !== null;
+}
+
+export function setToken(token: string): void {
+  localStorage.setItem(TOKEN_KEY, token);
 }
 
 export function logOut(): void {
-  localStorage.removeItem(AUTH_KEY);
+  localStorage.removeItem(TOKEN_KEY);
 }

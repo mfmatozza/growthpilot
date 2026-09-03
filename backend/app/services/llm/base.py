@@ -9,8 +9,9 @@ class LLMError(Exception):
 
 
 class LLMClient(ABC):
-    """Interface every pipeline codes against, never the Anthropic SDK
-    directly. Keeps provider swaps and test-mocking cheap."""
+    """Interface every pipeline codes against, never a provider SDK (OpenAI,
+    Anthropic, ...) directly. Keeps provider swaps and test-mocking cheap —
+    see app/services/llm/factory.py for which implementation is active."""
 
     @abstractmethod
     def complete_json(

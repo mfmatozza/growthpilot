@@ -3,15 +3,17 @@ import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { RedditOpportunity } from "../api/types";
 import Badge from "../components/Badge";
+import { useSiteContext } from "../siteContext";
 
 export default function Reddit() {
+  const { siteId } = useSiteContext();
   const [opportunities, setOpportunities] = useState<RedditOpportunity[]>([]);
 
-  const load = () => api.get<RedditOpportunity[]>("/api/reddit-opportunities").then(setOpportunities);
+  const load = () => api.get<RedditOpportunity[]>(`/api/reddit-opportunities?site_id=${siteId}`).then(setOpportunities);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [siteId]);
 
   async function updateStatus(id: number, status: RedditOpportunity["status"]) {
     await api.patch(`/api/reddit-opportunities/${id}`, { status });

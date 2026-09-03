@@ -80,3 +80,37 @@ Supersedes decision #9's split recommendation, per explicit request. Railway run
 also simplifies decision #9's original concern. See README's Railway section for the two-service setup
 (monorepo: `backend/` and `frontend/` each deploy from their own Dockerfile) and Postgres via Railway's
 plugin.
+
+## 15. Default LLM provider is OpenAI, not Anthropic — and the model is gpt-4o, not gpt-5
+Per explicit request. `LLM_PROVIDER` (default `openai`) picks between `OpenAIClient` and `AnthropicClient`
+via `app/services/llm/factory.py` — every pipeline/route calls `get_default_llm_client()`, never a provider
+class directly, so this is a one-line env var change, not a code change. `OPENAI_MODEL` is a config value for
+the same reason as decision #4. Tried `gpt-5` first: it spends hidden "reasoning" tokens out of
+`max_completion_tokens` before emitting visible content, and on the keyword-candidates prompt (asks for
+30-50 structured items) reasoning consumed the entire 4096-token budget, returning empty content — confirmed
+against the real API, not a guess. `gpt-4o` has no reasoning tax, is cheaper, and reliably returns the full
+list. Reconsider a reasoning model for prompts that actually need deep reasoning (e.g. Module 2 outlining),
+but verify against the real API with a realistically-sized prompt first, not a toy one.
+
+## 16. Real server-side login, not a client-side gate — supersedes #13
+Per explicit request ("don't let a@a / a work"). `POST /api/auth/login` checks email+password against
+`ADMIN_EMAIL`/`ADMIN_PASSWORD` (plaintext env-var comparison — there's exactly one account, so a user table
+and password hashing would be complexity with no payoff) and returns `SECRET_KEY` itself as the bearer
+token; every other `/api/*` route (`/health` and `/api/auth/login` excepted) requires
+`Authorization: Bearer <token>` via the `require_auth` dependency in `app/core/auth.py`, wired per-router in
+`app/main.py`. The frontend still keeps a token in `localStorage` and gates `/dashboard/*` client-side
+(`RequireAuth`), but that's now just a UX nicety on top of a real server-side check, not the only check.
+
+## 17. Multi-site is route-scoped: `/dashboard/sites/:siteId/...`
+Per explicit request for separate per-site dashboards. `/dashboard` is now a site picker/creator
+(`SitesHome.tsx`) rather than a single global view; every module page reads `siteId` from the route and
+filters its API calls by it (`?site_id=`, already supported by every list endpoint). `Keywords.tsx` no
+longer owns its own site dropdown/create-site form — that moved to `SitesHome.tsx`, the one place "add a
+website" happens now.
+
+## 18. Dashboard accent palette: a validated pastel green + pastel blue pair
+Per explicit request to drop the navy/blue. Chose via the `dataviz` skill's validator rather than eyeballing
+it: mark/accent hues `#0DA678` (green) and `#2A9BE0` (blue) pass CVD-separation and lightness-band checks
+(`node scripts/validate_palette.js "#0DA678,#2A9BE0" --mode light`); lighter tints of the same hues
+(`brand.greenSoft`/`brand.blueSoft`/`*Tint`, see `frontend/tailwind.config.js`) are used for backgrounds/chips
+where a true pastel reads fine because they're not carrying a thin data-mark against white.

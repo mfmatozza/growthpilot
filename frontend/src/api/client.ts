@@ -1,3 +1,5 @@
+import { getToken, logOut } from "../auth";
+
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 
 export class ApiError extends Error {
@@ -9,10 +11,23 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = getToken();
   const response = await fetch(`${BASE_URL}${path}`, {
     ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...init?.headers,
+    },
   });
+  if (response.status === 401) {
+    // Token missing/rejected server-side — the client-side gate (RequireAuth)
+    // only checks presence, so this is what actually enforces logout on a
+    // stale/invalid token.
+    logOut();
+    window.location.href = "/login";
+    throw new ApiError(401, "Not authenticated");
+  }
   if (!response.ok) {
     const body = await response.text();
     throw new ApiError(response.status, body || response.statusText);

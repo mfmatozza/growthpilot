@@ -10,8 +10,8 @@ from app.schemas.keyword import KeywordRead, KeywordStatusUpdate, RunKeywordRese
 from app.services.crawler.httpx_fetcher import HttpxFetcher
 from app.services.keyword_data.base import KeywordDataError
 from app.services.keyword_data.dataforseo import DataForSEOProvider
-from app.services.llm.anthropic_client import AnthropicClient
 from app.services.llm.base import LLMError
+from app.services.llm.factory import get_default_llm_client
 
 router = APIRouter(prefix="/api/keywords", tags=["keywords"])
 
@@ -42,13 +42,13 @@ def trigger_keyword_research(payload: RunKeywordResearchRequest, db: Session = D
     """Runs the Module 1 pipeline synchronously. Fine for a single-user
     internal tool with one site; move behind the scheduler/job queue if this
     starts blocking the request for too long once DataForSEO + a slower
-    Claude call are both in the loop."""
+    LLM call are both in the loop."""
     site = db.get(Site, payload.site_id)
     if not site:
         raise HTTPException(status_code=404, detail="Site not found")
 
     try:
-        llm = AnthropicClient()
+        llm = get_default_llm_client()
     except LLMError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

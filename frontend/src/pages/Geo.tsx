@@ -4,13 +4,15 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import { api } from "../api/client";
 import type { GeoMention } from "../api/types";
 import Badge from "../components/Badge";
+import { useSiteContext } from "../siteContext";
 
 export default function Geo() {
+  const { siteId } = useSiteContext();
   const [mentions, setMentions] = useState<GeoMention[]>([]);
 
   useEffect(() => {
-    api.get<GeoMention[]>("/api/geo-mentions").then(setMentions);
-  }, []);
+    api.get<GeoMention[]>(`/api/geo-mentions?site_id=${siteId}`).then(setMentions);
+  }, [siteId]);
 
   const chartData = useMemo(() => {
     // Bucket by check date, one visibility-rate line overall (per-provider
@@ -52,7 +54,7 @@ export default function Geo() {
               <XAxis dataKey="date" fontSize={12} />
               <YAxis fontSize={12} unit="%" domain={[0, 100]} />
               <Tooltip />
-              <Line type="monotone" dataKey="visibilityRate" stroke="#0f172a" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="visibilityRate" stroke="#0DA678" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
         ) : (

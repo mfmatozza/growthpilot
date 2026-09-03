@@ -1,9 +1,10 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import articles, audit, geo, health, keywords, reddit, sites
+from app.api.routes import articles, audit, auth, geo, health, keywords, reddit, sites
+from app.core.auth import require_auth
 from app.core.config import get_settings
 from app.scheduler import jobs
 
@@ -24,10 +25,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# health and auth/login are the only unauthenticated routes — everything
+# else requires the bearer token issued by POST /api/auth/login.
 app.include_router(health.router)
-app.include_router(sites.router)
-app.include_router(keywords.router)
-app.include_router(articles.router)
-app.include_router(audit.router)
-app.include_router(geo.router)
-app.include_router(reddit.router)
+app.include_router(auth.router)
+
+_protected = [Depends(require_auth)]
+app.include_router(sites.router, dependencies=_protected)
+app.include_router(keywords.router, dependencies=_protected)
+app.include_router(articles.router, dependencies=_protected)
+app.include_router(audit.router, dependencies=_protected)
+app.include_router(geo.router, dependencies=_protected)
+app.include_router(reddit.router, dependencies=_protected)

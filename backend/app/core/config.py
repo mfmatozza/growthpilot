@@ -15,7 +15,24 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://growthpilot:growthpilot@localhost:5432/growthpilot"
     secret_key: str = "change-me-dev-only"
 
-    # LLM
+    # Single-operator login (docs/DECISIONS.md #16). Real server-side check,
+    # not a client-side gate — every /api/* route except /health and
+    # /api/auth/login requires the bearer token issued at login.
+    admin_email: str = ""
+    admin_password: str = ""
+
+    # LLM. "openai" is the default provider (docs/DECISIONS.md #15); set
+    # LLM_PROVIDER=anthropic to switch back, no code change needed.
+    # openai_api_key is also reused as-is by Module 4's GEO tracker (querying
+    # ChatGPT) once that's built — one key, two consumers.
+    llm_provider: str = "openai"
+    openai_api_key: str = ""
+    # NOT gpt-5 — its hidden reasoning-token spend can consume the entire
+    # max_completion_tokens budget before emitting any visible content on a
+    # large structured-JSON prompt (confirmed: a 30-50 item keyword list
+    # request returned empty). gpt-4o has no reasoning tax and is cheaper.
+    # See docs/DECISIONS.md #15.
+    openai_model: str = "gpt-4o"
     anthropic_api_key: str = ""
     claude_model: str = "claude-sonnet-5"
 
@@ -32,7 +49,6 @@ class Settings(BaseSettings):
     unsplash_access_key: str = ""
 
     # GEO tracker
-    openai_api_key: str = ""
     google_gemini_api_key: str = ""
     perplexity_api_key: str = ""
 

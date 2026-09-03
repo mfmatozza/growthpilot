@@ -1,3 +1,11 @@
+import os
+
+# Must be set before `app.main` is imported anywhere — Settings() reads env
+# once and get_settings() caches the result for the process lifetime.
+os.environ.setdefault("ADMIN_EMAIL", "test@example.com")
+os.environ.setdefault("ADMIN_PASSWORD", "test-password")
+os.environ.setdefault("SECRET_KEY", "test-secret-key")
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -8,6 +16,8 @@ from app.api.deps import get_db
 from app.db.base import Base
 from app.main import app
 from app.models.site import Site
+
+TEST_AUTH_HEADERS = {"Authorization": "Bearer test-secret-key"}
 
 # SQLite in-memory for tests — no Postgres dependency in CI. All models use
 # generic SQLAlchemy types (JSON, non-native Enum) specifically so this works;
@@ -33,7 +43,7 @@ def client(db_session: Session):
         yield db_session
 
     app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app) as test_client:
+    with TestClient(app, headers=TEST_AUTH_HEADERS) as test_client:
         yield test_client
     app.dependency_overrides.clear()
 

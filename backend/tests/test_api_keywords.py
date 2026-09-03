@@ -53,12 +53,12 @@ def test_update_keyword_status_404_for_missing_keyword(client):
     assert response.status_code == 404
 
 
-def test_trigger_keyword_research_400_without_anthropic_key(client, site):
-    # No ANTHROPIC_API_KEY configured in the test environment — the endpoint
-    # should fail clearly rather than crash.
+def test_trigger_keyword_research_400_without_llm_key(client, site):
+    # No OPENAI_API_KEY configured in the test environment (default
+    # LLM_PROVIDER) — the endpoint should fail clearly rather than crash.
     response = client.post("/api/keywords/research", json={"site_id": site.id})
     assert response.status_code == 400
-    assert "ANTHROPIC_API_KEY" in response.json()["detail"]
+    assert "OPENAI_API_KEY" in response.json()["detail"]
 
 
 def test_trigger_keyword_research_404_for_missing_site(client):

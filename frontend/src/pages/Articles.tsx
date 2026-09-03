@@ -3,13 +3,15 @@ import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { Article } from "../api/types";
 import Badge from "../components/Badge";
+import { useSiteContext } from "../siteContext";
 
 export default function Articles() {
+  const { siteId } = useSiteContext();
   const [articles, setArticles] = useState<Article[]>([]);
 
   useEffect(() => {
-    api.get<Article[]>("/api/articles").then(setArticles);
-  }, []);
+    api.get<Article[]>(`/api/articles?site_id=${siteId}`).then(setArticles);
+  }, [siteId]);
 
   return (
     <div>
