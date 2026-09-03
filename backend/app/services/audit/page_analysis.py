@@ -134,11 +134,11 @@ def run_all_checks(pages: list[PageAuditInfo], link_statuses: dict[str, int | No
 
 
 def crawl_for_audit(base_url: str, fetcher: PageFetcher, max_pages: int = 8) -> list[PageAuditInfo]:
+    """A *sub*-page that fails to fetch is skipped. If the homepage itself
+    can't be fetched, that's re-raised — see crawl_site's docstring for why
+    this distinction matters (a real false-negative bug, not hypothetical)."""
     pages: list[PageAuditInfo] = []
-    try:
-        homepage = fetcher.fetch(base_url)
-    except FetchError:
-        return pages
+    homepage = fetcher.fetch(base_url)
     pages.append(extract_audit_info(homepage.url, homepage.html))
 
     for url in discover_key_page_urls(base_url, homepage.html, max_pages=max_pages):

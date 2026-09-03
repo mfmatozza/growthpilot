@@ -1,4 +1,7 @@
-from app.services.crawler.site_crawler import discover_key_page_urls, extract_page_content
+import pytest
+
+from app.services.crawler.base import FetchError, PageFetcher
+from app.services.crawler.site_crawler import crawl_site, discover_key_page_urls, extract_page_content
 
 SAMPLE_HTML = """
 <html>
@@ -62,3 +65,15 @@ def test_discover_key_page_urls_respects_max_pages():
     urls = discover_key_page_urls("https://acme.com", html, max_pages=5)
 
     assert len(urls) == 5
+
+
+def test_crawl_site_raises_when_homepage_is_unreachable():
+    # A malformed/unreachable base URL must be a clear failure, not a silent
+    # empty result a caller could mistake for "crawled fine, nothing found"
+    # — confirmed as a real bug: it made an audit report false "no issues".
+    class AlwaysFailsFetcher(PageFetcher):
+        def fetch(self, url: str):
+            raise FetchError("DNS resolution failed")
+
+    with pytest.raises(FetchError):
+        crawl_site("https://broken.example", AlwaysFailsFetcher())

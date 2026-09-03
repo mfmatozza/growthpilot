@@ -96,15 +96,17 @@ def discover_key_page_urls(base_url: str, homepage_html: str, max_pages: int = 8
 
 
 def crawl_site(base_url: str, fetcher: PageFetcher, max_pages: int = 8) -> list[PageContent]:
-    """Fetch the homepage plus up to `max_pages` key internal pages. A page
-    that fails to fetch is skipped, not fatal — a partial site profile beats
-    no profile at all."""
+    """Fetch the homepage plus up to `max_pages` key internal pages. A
+    *sub*-page that fails to fetch is skipped, not fatal — a partial site
+    profile beats no profile at all. But if the homepage itself can't be
+    fetched, that's not "zero issues found", it's "couldn't reach this
+    site" — re-raise rather than returning an empty list a caller could
+    mistake for a clean/complete result (confirmed real bug: a malformed
+    stored URL made an audit silently report "no issues" instead of
+    failing)."""
     pages: list[PageContent] = []
 
-    try:
-        homepage = fetcher.fetch(base_url)
-    except FetchError:
-        return pages
+    homepage = fetcher.fetch(base_url)
 
     pages.append(extract_page_content(homepage.url, homepage.html))
 

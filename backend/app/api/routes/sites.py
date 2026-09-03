@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.models.site import Site
-from app.schemas.site import SiteCreate, SiteRead
+from app.schemas.site import SiteCreate, SiteRead, SiteUpdate
 
 router = APIRouter(prefix="/api/sites", tags=["sites"])
 
@@ -31,6 +31,20 @@ def get_site(site_id: int, db: Session = Depends(get_db)) -> Site:
     site = db.get(Site, site_id)
     if not site:
         raise HTTPException(status_code=404, detail="Site not found")
+    return site
+
+
+@router.patch("/{site_id}", response_model=SiteRead)
+def update_site(site_id: int, payload: SiteUpdate, db: Session = Depends(get_db)) -> Site:
+    site = db.get(Site, site_id)
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+    if payload.url is not None:
+        site.url = payload.url
+    if payload.name is not None:
+        site.name = payload.name
+    db.commit()
+    db.refresh(site)
     return site
 
 

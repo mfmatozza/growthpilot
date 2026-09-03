@@ -7,6 +7,7 @@ from app.models.keyword import Keyword
 from app.models.site import Site
 from app.pipelines.keyword_research import run_keyword_research
 from app.schemas.keyword import KeywordRead, KeywordStatusUpdate, RunKeywordResearchRequest
+from app.services.crawler.base import FetchError
 from app.services.crawler.httpx_fetcher import HttpxFetcher
 from app.services.keyword_data.base import KeywordDataError
 from app.services.keyword_data.dataforseo import DataForSEOProvider
@@ -60,10 +61,13 @@ def trigger_keyword_research(payload: RunKeywordResearchRequest, db: Session = D
         # with null volume/difficulty, reviewable once DataForSEO is configured.
         pass
 
-    return run_keyword_research(
-        db=db,
-        site=site,
-        fetcher=HttpxFetcher(),
-        llm=llm,
-        keyword_data_provider=keyword_data_provider,
-    )
+    try:
+        return run_keyword_research(
+            db=db,
+            site=site,
+            fetcher=HttpxFetcher(),
+            llm=llm,
+            keyword_data_provider=keyword_data_provider,
+        )
+    except FetchError as exc:
+        raise HTTPException(status_code=502, detail=f"Couldn't reach {site.url}: {exc}") from exc

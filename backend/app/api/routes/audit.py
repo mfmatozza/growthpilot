@@ -8,6 +8,7 @@ from app.models.audit_finding import AuditFinding
 from app.models.site import Site
 from app.pipelines.technical_audit import run_technical_audit
 from app.schemas.audit import AuditFindingRead, RunAuditRequest
+from app.services.crawler.base import FetchError
 from app.services.crawler.httpx_fetcher import HttpxFetcher
 from app.services.llm.base import LLMError
 from app.services.llm.factory import get_default_llm_client
@@ -36,10 +37,13 @@ def trigger_audit(payload: RunAuditRequest, db: Session = Depends(get_db)) -> li
     except LLMError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    return run_technical_audit(
-        db=db,
-        site=site,
-        fetcher=HttpxFetcher(),
-        llm=llm,
-        pagespeed_api_key=get_settings().google_pagespeed_api_key,
-    )
+    try:
+        return run_technical_audit(
+            db=db,
+            site=site,
+            fetcher=HttpxFetcher(),
+            llm=llm,
+            pagespeed_api_key=get_settings().google_pagespeed_api_key,
+        )
+    except FetchError as exc:
+        raise HTTPException(status_code=502, detail=f"Couldn't reach {site.url}: {exc}") from exc

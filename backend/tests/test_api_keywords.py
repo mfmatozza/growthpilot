@@ -10,6 +10,45 @@ def test_create_and_list_sites(client):
     assert response.json()[0]["name"] == "Acme"
 
 
+def test_create_site_strips_whitespace_from_url_and_name(client):
+    # A trailing space in a stored URL fails DNS resolution outright —
+    # this is a regression test for a real bug, not a hypothetical.
+    response = client.post("/api/sites", json={"url": "https://acme.com ", "name": " Acme "})
+    assert response.status_code == 201
+    assert response.json()["url"] == "https://acme.com"
+    assert response.json()["name"] == "Acme"
+
+
+def test_update_site_strips_whitespace(client, site):
+    response = client.patch(f"/api/sites/{site.id}", json={"url": "  https://new-acme.com  "})
+    assert response.status_code == 200
+    assert response.json()["url"] == "https://new-acme.com"
+
+
+def test_update_site_404_for_missing_site(client):
+    response = client.patch("/api/sites/999", json={"name": "New name"})
+    assert response.status_code == 404
+
+
+def test_trigger_keyword_research_502_when_site_is_unreachable(client, site, monkeypatch):
+    from app.core.config import get_settings
+    from app.services.crawler.base import FetchError
+    from app.services.crawler.httpx_fetcher import HttpxFetcher
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    get_settings.cache_clear()
+
+    def _always_fails(self, url):
+        raise FetchError("DNS resolution failed")
+
+    monkeypatch.setattr(HttpxFetcher, "fetch", _always_fails)
+
+    response = client.post("/api/keywords/research", json={"site_id": site.id})
+
+    assert response.status_code == 502
+    get_settings.cache_clear()
+
+
 def test_delete_site_removes_it_and_its_keywords(client, db_session, site):
     db_session.add(Keyword(site_id=site.id, keyword="a", status=KeywordStatus.candidate))
     db_session.commit()

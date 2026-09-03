@@ -1,4 +1,7 @@
+import pytest
+
 from app.services.audit.page_analysis import (
+    crawl_for_audit,
     extract_audit_info,
     find_broken_links,
     find_duplicate_titles,
@@ -6,6 +9,7 @@ from app.services.audit.page_analysis import (
     find_missing_meta_description,
     find_missing_title,
 )
+from app.services.crawler.base import FetchError, PageFetcher
 
 NO_TITLE_HTML = "<html><body><p>hi</p></body></html>"
 
@@ -102,3 +106,12 @@ def test_find_broken_links_flags_explicit_none_as_failed_request():
 
     assert len(findings) == 1
     assert "page-1" in findings[0]["description"]
+
+
+def test_crawl_for_audit_raises_when_homepage_is_unreachable():
+    class AlwaysFailsFetcher(PageFetcher):
+        def fetch(self, url: str):
+            raise FetchError("DNS resolution failed")
+
+    with pytest.raises(FetchError):
+        crawl_for_audit("https://broken.example", AlwaysFailsFetcher())
