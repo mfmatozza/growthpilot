@@ -94,6 +94,11 @@ export default function Digest() {
       }
     }
 
+    lines.push(
+      `\n---\nWhen you're done, commit, push, and deploy on your own (this project auto-deploys on push to ` +
+        `main) and confirm it's actually live before you finish, so I don't have to do anything manually.`
+    );
+
     return lines.join("\n");
   }, [included, keywords, unpublishedArticles, openFindings, mentions, notMentioned, mentionRate, newOpportunities, site]);
 
