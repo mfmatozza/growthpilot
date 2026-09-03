@@ -218,3 +218,11 @@ every site. Drafts land at `ArticleStatus.draft`; nothing anywhere in this codeb
 moves an article to `published` except a human clicking the status buttons in the UI (`PATCH
 /api/articles/{id}`) — the brief's "give me a review UI before anything auto-publishes" is a hard
 requirement, not a default that automation quietly bypasses.
+
+## 28. The "Claude Prompt" digest tab is frontend-only, no new backend endpoint
+Per explicit request for a way to hand off a week's state to a fresh Claude Code session in one paste.
+Every data point it needs (candidate keywords, unpublished articles, open audit findings, GEO mentions,
+new Reddit opportunities) is already served by existing site-scoped GET endpoints, so the digest is pure
+client-side formatting over data already being fetched elsewhere in the app — no new API surface, nothing
+new to test on the backend. Checkboxes control which sections are included; the assembled text is built
+with `useMemo` and only touches `navigator.clipboard` on explicit copy, never sent anywhere on its own.

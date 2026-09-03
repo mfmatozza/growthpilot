@@ -21,6 +21,7 @@ export default function Layout() {
     { to: `/dashboard/sites/${siteId}/audit`, label: "Technical Audit" },
     { to: `/dashboard/sites/${siteId}/geo`, label: "GEO Tracker" },
     { to: `/dashboard/sites/${siteId}/reddit`, label: "Reddit Queue" },
+    { to: `/dashboard/sites/${siteId}/digest`, label: "Claude Prompt" },
   ];
 
   function handleLogOut() {

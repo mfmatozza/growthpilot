@@ -4,6 +4,7 @@ import Layout from "./components/Layout";
 import RequireAuth from "./components/RequireAuth";
 import Articles from "./pages/Articles";
 import Audit from "./pages/Audit";
+import Digest from "./pages/Digest";
 import Geo from "./pages/Geo";
 import Keywords from "./pages/Keywords";
 import Landing from "./pages/Landing";
@@ -27,6 +28,7 @@ export default function App() {
           <Route path="audit" element={<Audit />} />
           <Route path="geo" element={<Geo />} />
           <Route path="reddit" element={<Reddit />} />
+          <Route path="digest" element={<Digest />} />
         </Route>
       </Route>
     </Routes>
