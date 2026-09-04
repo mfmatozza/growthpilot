@@ -273,3 +273,13 @@ both the outline and section-drafting prompts. Verified against the real API, no
 prompt change: a real informational article came back at 932 words, a real comparison article (7 sections,
 inherently longer given 3 option write-ups + intro + criteria + table + verdict) at 1290 words — both
 comfortably under the limit, both still zero em dashes.
+
+## 32. "Copy SEO prompt" button: fixed static text, not generated from GrowthPilot's data
+Per explicit request, with the exact prompt content provided verbatim by the user (a programmatic-SEO
+architecture brief plus 12 pSEO playbooks — templates, curation, conversions, comparisons, examples,
+locations, personas, integrations, glossary, translations, directory, profiles). Unlike the Digest tab
+(#28/#30), this prompt doesn't depend on live keywords/articles/audit state at all, so it lives as a plain
+constant (`frontend/src/seoPrompt.ts`) rather than a `useMemo` over fetched data — only the site name/URL
+header line is dynamic. Placed on the Overview page (each site's dashboard homepage) per the request to put
+it "in the home page of every website," not folded into the Digest tab, since it's a different kind of
+artifact (a one-time architecture kickoff, not a recurring state snapshot).

@@ -5,6 +5,7 @@ import { api } from "../api/client";
 import type { Article, AuditFinding, GeoMention, Keyword } from "../api/types";
 import { DocumentIcon, GlobeIcon, ShieldIcon, TagIcon } from "../components/icons";
 import StatCard from "../components/StatCard";
+import { buildSeoPrompt } from "../seoPrompt";
 import { useSiteContext } from "../siteContext";
 
 const PIPELINE_STAGES: { key: Keyword["status"]; label: string; color: string }[] = [
@@ -21,6 +22,7 @@ export default function Overview() {
   const [findings, setFindings] = useState<AuditFinding[]>([]);
   const [mentions, setMentions] = useState<GeoMention[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [seoPromptCopyLabel, setSeoPromptCopyLabel] = useState("Copy SEO prompt");
 
   useEffect(() => {
     Promise.all([
@@ -52,15 +54,31 @@ export default function Overview() {
   const nextSteps = [
     { done: keywords.length > 0, label: "Run keyword research", to: `/dashboard/sites/${siteId}/keywords` },
     { done: keywords.some((k) => k.status === "approved"), label: "Approve at least one keyword", to: `/dashboard/sites/${siteId}/keywords` },
-    { done: articles.length > 0, label: "Generate your first article (Module 2 — not built yet)", to: `/dashboard/sites/${siteId}/articles` },
-    { done: mentions.length > 0, label: "Set up GEO visibility tracking (Module 4 — not built yet)", to: `/dashboard/sites/${siteId}/geo` },
+    { done: articles.length > 0, label: "Generate your first article", to: `/dashboard/sites/${siteId}/articles` },
+    { done: mentions.length > 0, label: "Run a GEO visibility check", to: `/dashboard/sites/${siteId}/geo` },
   ];
+
+  function handleCopySeoPrompt() {
+    navigator.clipboard.writeText(buildSeoPrompt(site));
+    setSeoPromptCopyLabel("Copied!");
+    setTimeout(() => setSeoPromptCopyLabel("Copy SEO prompt"), 1500);
+  }
 
   return (
     <div>
-      <h1 className="text-xl font-semibold">{site?.name ?? "Overview"}</h1>
-      {site && <p className="mb-6 text-sm text-slate-500">{site.url}</p>}
-      {!site && <div className="mb-6" />}
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-xl font-semibold">{site?.name ?? "Overview"}</h1>
+          {site && <p className="text-sm text-slate-500">{site.url}</p>}
+        </div>
+        <button
+          onClick={handleCopySeoPrompt}
+          className="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          title="Copies a full programmatic-SEO architecture prompt — paste it into a fresh Claude Code session running in this site's own repo"
+        >
+          {seoPromptCopyLabel}
+        </button>
+      </div>
 
       {error && (
         <div className="mb-4 rounded-md bg-rose-50 px-4 py-3 text-sm text-rose-700">
